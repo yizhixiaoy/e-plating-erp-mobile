@@ -1,0 +1,8 @@
+{
+  "name": "e-plating-erp-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"Use HBuilderX or uni CLI to run\""
+  }
+}
