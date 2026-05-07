@@ -1,10 +1,38 @@
 {
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "E-Plating ERP",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f5f7fa",
+    "backgroundTextStyle": "light",
+    "navigationStyle": "default"
+  },
   "pages": [
-    { "path": "pages/auth/login", "style": { "navigationBarTitleText": "登录" } },
+    { "path": "pages/auth/login", "style": { "navigationBarTitleText": "登录", "navigationStyle": "custom" } },
     { "path": "pages/message/list", "style": { "navigationBarTitleText": "消息中心" } },
-    { "path": "pages/message/detail", "style": { "navigationBarTitleText": "消息详情" } },
+    { "path": "pages/message/detail", "style": { "navigationBarTitleText": "消息详情", "navigationStyle": "custom" } },
     { "path": "pages/todo/list", "style": { "navigationBarTitleText": "我的待办" } },
-    { "path": "pages/todo/detail", "style": { "navigationBarTitleText": "待办详情" } },
-    { "path": "pages/auth/scan-confirm", "style": { "navigationBarTitleText": "扫码确认" } }
-  ]
+    { "path": "pages/todo/detail", "style": { "navigationBarTitleText": "待办详情", "navigationStyle": "custom" } },
+    { "path": "pages/auth/scan-confirm", "style": { "navigationBarTitleText": "扫码确认", "navigationStyle": "custom" } }
+  ],
+  "tabBar": {
+    "color": "#64748b",
+    "selectedColor": "#3b82f6",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/message/list",
+        "text": "消息",
+        "iconPath": "static/icons/message.png",
+        "selectedIconPath": "static/icons/message-active.png"
+      },
+      {
+        "pagePath": "pages/todo/list",
+        "text": "待办",
+        "iconPath": "static/icons/todo.png",
+        "selectedIconPath": "static/icons/todo-active.png"
+      }
+    ]
+  }
 }
