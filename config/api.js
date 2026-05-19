@@ -2,44 +2,82 @@
 const config = {
   // API基础URL
   apiBase: process.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1",
-  
+
   // 存储键名
   storageKeys: {
     token: "token",
+    refreshToken: "refreshToken",
     lastTenantCode: "lastTenantCode",
-    userInfo: "userInfo"
+    userInfo: "userInfo",
+    settings: "appSettings"
   },
-  
+
   // 登录相关API
   login: {
     tenantSearch: "/auth/tenants/search",
     recentTenants: "/auth/tenants/recent",
     smsCode: "/auth/sms-code",
     login: "/auth/login",
+    logout: "/auth/logout",
+    refresh: "/auth/refresh",
     resetPassword: "/auth/reset-password",
     scanTicket: "/auth/scan-ticket"
   },
-  
+
+  // 移动端工作台
+  workbench: {
+    stats: "/mobile/workbench/stats",
+    quickAccess: "/mobile/workbench/quick-access"
+  },
+
   // 消息相关API
   message: {
     list: "/mobile/messages",
-    read: "/mobile/messages/{noticeId}/read"
+    read: "/mobile/messages/{noticeId}/read",
+    readAll: "/mobile/messages/read-all"
   },
-  
+
   // 待办事项相关API
   todo: {
-    list: "/mobile/todos"
+    list: "/mobile/todos",
+    detail: "/mobile/todos/{id}",
+    handle: "/mobile/todos/{id}/handle",
+    read: "/mobile/todos/{id}/read",
+    stats: "/mobile/todos/stats"
   },
-  
-  // 认证相关API
-  auth: {
-    refresh: "/mobile/auth/refresh"
+
+  // 通讯录
+  contacts: {
+    deptTree: "/mobile/contacts/depts",
+    userList: "/mobile/contacts/users",
+    userDetail: "/mobile/contacts/users/{id}"
+  },
+
+  // 个人中心
+  me: {
+    profile: "/mobile/me/profile",
+    password: "/mobile/me/password",
+    settingsGet: "/mobile/me/settings",
+    settingsPut: "/mobile/me/settings"
+  },
+
+  // 字典
+  dict: {
+    data: "/dicts/data/{dictType}"
   }
 };
 
 // 生成完整的API URL
 config.getUrl = function(path) {
   return this.apiBase + path;
+};
+
+// 占位符替换：getUrl("/x/{id}", { id: 1 }) -> /x/1
+config.fillPath = function(path, params) {
+  if (!params) return path;
+  return path.replace(/\{(\w+)\}/g, function(_, k) {
+    return params[k] != null ? params[k] : "";
+  });
 };
 
 module.exports = config;

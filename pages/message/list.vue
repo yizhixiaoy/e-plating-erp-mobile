@@ -66,30 +66,27 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
+const http = require("../../utils/request.js");
+const dict = require("../../utils/dict.js");
+const auth = require("../../utils/auth.js");
+const apiCfg = require("../../config/api.js");
 
 const rows = ref([]);
 const currentTab = ref("all");
 const loading = ref(false);
+const noticeTypeItems = ref([]);
 
-// 导入配置文件
-const config = require("../../config/api.js");
-const apiBase = config.apiBase;
-
-const tabs = [
+const tabs = ref([
   { label: "全部", value: "all", count: 0 },
   { label: "未读", value: "unread", count: 0 },
-  { label: "系统", value: "SYS_UPDATE", count: 0 },
-  { label: "通知", value: "INTERNAL_NOTICE", count: 0 }
-];
+  { label: "系统更新", value: "SYS_UPDATE", count: 0 },
+  { label: "内部通知", value: "INTERNAL_NOTICE", count: 0 }
+]);
 
 const filteredList = computed(() => {
-  if (currentTab.value === "all") {
-    return rows.value;
-  } else if (currentTab.value === "unread") {
-    return rows.value.filter(item => item.readStatus === 0);
-  } else {
-    return rows.value.filter(item => item.noticeType === currentTab.value);
-  }
+  if (currentTab.value === "all") return rows.value;
+  if (currentTab.value === "unread") return rows.value.filter((i) => i.readStatus === 0);
+  return rows.value.filter((i) => i.noticeType === currentTab.value);
 });
 
 function getTypeClass(type) {
@@ -97,78 +94,80 @@ function getTypeClass(type) {
 }
 
 function getTypeLabel(type) {
-  return type === "SYS_UPDATE" ? "系统" : "通知";
+  return dict.getDictLabel(noticeTypeItems.value, type) || (type === "SYS_UPDATE" ? "系统更新" : "内部通知");
 }
 
 function formatTime(time) {
   if (!time) return "";
   const date = new Date(time);
-  const now = new Date();
-  const diff = now - date;
-  
+  const diff = Date.now() - date.getTime();
   if (diff < 60000) return "刚刚";
   if (diff < 3600000) return Math.floor(diff / 60000) + "分钟前";
   if (diff < 86400000) return Math.floor(diff / 3600000) + "小时前";
   return date.toLocaleDateString();
 }
 
-const load = async () => {
-  const token = uni.getStorageSync("token");
-  const resp = await uni.request({
-    url: `${apiBase}/mobile/messages`,
-    method: "GET",
-    header: { Authorization: `Bearer ${token}` }
-  });
-  rows.value = resp.data?.data || [];
-  updateTabCounts();
-};
+async function load() {
+  loading.value = true;
+  try {
+    const res = await http.get(apiCfg.message.list, null, { silent: true });
+    rows.value = res.data || [];
+    updateTabCounts();
+  } catch (e) { rows.value = []; }
+  finally { loading.value = false; }
+}
 
 function updateTabCounts() {
-  tabs[0].count = rows.value.length;
-  tabs[1].count = rows.value.filter(item => item.readStatus === 0).length;
-  tabs[2].count = rows.value.filter(item => item.noticeType === "SYS_UPDATE").length;
-  tabs[3].count = rows.value.filter(item => item.noticeType === "INTERNAL_NOTICE").length;
+  tabs.value[0].count = rows.value.length;
+  tabs.value[1].count = rows.value.filter((i) => i.readStatus === 0).length;
+  tabs.value[2].count = rows.value.filter((i) => i.noticeType === "SYS_UPDATE").length;
+  tabs.value[3].count = rows.value.filter((i) => i.noticeType === "INTERNAL_NOTICE").length;
 }
 
-const markRead = async (noticeId) => {
-  const token = uni.getStorageSync("token");
-  await uni.request({
-    url: `${apiBase}/mobile/messages/${noticeId}/read`,
-    method: "PATCH",
-    header: { Authorization: `Bearer ${token}` }
-  });
+async function markRead(noticeId) {
+  // noticeId 是 Long，保持字符串
+  const url = apiCfg.fillPath(apiCfg.message.read, { noticeId: String(noticeId) });
+  await http.patch(url, null, { silent: true });
   await load();
-};
+}
 
-const markAllRead = async () => {
+async function markAllRead() {
   uni.showModal({
     title: "提示",
-    content: "确定将所有消息标记为已读吗？",
+    content: "确定将所有消息标记为已读？",
     success: async (res) => {
-      if (res.confirm) {
-        const unreadItems = rows.value.filter(item => item.readStatus === 0);
-        for (const item of unreadItems) {
-          await markRead(item.noticeId);
+      if (!res.confirm) return;
+      try {
+        // 优先调用后端批量接口；失败则退化逐条。
+        await http.post(apiCfg.message.readAll, {}, { silent: true });
+      } catch (e) {
+        const unread = rows.value.filter((i) => i.readStatus === 0);
+        for (const item of unread) {
+          try { await markRead(item.noticeId); } catch (er) { /* ignore */ }
         }
-        uni.showToast({ title: "操作成功", icon: "success" });
       }
+      uni.showToast({ title: "操作成功", icon: "success" });
+      load();
     }
   });
-};
-
-const openDetail = (noticeId) => {
-  uni.navigateTo({ url: `/pages/message/detail?id=${noticeId}` });
-};
-
-function loadMore() {
-  if (loading.value) return;
-  loading.value = true;
-  setTimeout(() => {
-    loading.value = false;
-  }, 1000);
 }
 
-onMounted(load);
+function openDetail(noticeId) {
+  uni.navigateTo({ url: "/pages/message/detail?id=" + String(noticeId) });
+}
+
+function loadMore() {
+  // 占位：当前后端接口未分页，后续按需增强
+}
+
+onMounted(() => {
+  if (!auth.getToken()) {
+    uni.reLaunch({ url: "/pages/auth/login" });
+    return;
+  }
+  dict.fetchDictData("sys_notice_type").then((items) => { noticeTypeItems.value = items; });
+  load();
+});
 </script>
 
 <style scoped>
