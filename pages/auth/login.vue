@@ -303,10 +303,10 @@ function backToRole() {
 function validateUsername() {
   if (!username.value) {
     usernameError.value = "请输入账号";
-  } else if (username.value.length < 4 || username.value.length > 20) {
-    usernameError.value = "账号长度需在4-20个字符之间";
-  } else if (!/^[a-zA-Z0-9]+$/.test(username.value)) {
-    usernameError.value = "账号只能包含字母和数字";
+  } else if (username.value.length < 2 || username.value.length > 64) {
+    usernameError.value = "账号长度需在2-64个字符之间";
+  } else if (!/^[a-zA-Z0-9:@._-]+$/.test(username.value)) {
+    usernameError.value = "账号只能包含字母、数字和特殊字符(:@._-)";
   } else {
     usernameError.value = "";
   }
