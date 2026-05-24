@@ -4,5 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "echo \"Use HBuilderX or uni CLI to run\""
+  },
+  "dependencies": {
+    "sm-crypto": "^0.4.0"
   }
 }

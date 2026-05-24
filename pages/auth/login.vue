@@ -147,6 +147,7 @@ import { ref, computed, onMounted, watch } from "vue";
 
 // 导入配置文件
 const config = require("../../config/api.js");
+const auth = require("../../utils/auth.js");
 
 // 基础配置
 const apiBase = config.apiBase;
@@ -525,7 +526,19 @@ async function handleLogin() {
     
     if (resp.data?.code === 0 && resp.data?.data?.accessToken) {
       const token = resp.data.data.accessToken;
-      uni.setStorageSync("token", token);
+      const userInfo = resp.data.data.userInfo;
+      const sessionKey = resp.data.data.sessionKey;
+      
+      auth.setToken(token);
+      if (resp.data.data.refreshToken) {
+        auth.setRefreshToken(resp.data.data.refreshToken);
+      }
+      if (userInfo) {
+        auth.setUserInfo(userInfo);
+      }
+      if (sessionKey) {
+        auth.saveSessionKey(sessionKey);
+      }
       if (rememberTenant.value) {
         uni.setStorageSync(LAST_TENANT_CODE_KEY, selectedTenant.value.shortCode);
       }
