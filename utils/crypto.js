@@ -151,7 +151,7 @@ const ENCRYPTED_REQUEST_FIELDS = new Set([
 /** 需要解密的响应字段名集合 */
 const ENCRYPTED_RESPONSE_FIELDS = new Set([
   'phone', 'email', 'realName', 'username',
-  'companyPhone', 'leaderName'
+  'companyPhone', 'leaderName', 'newPassword'
 ]);
 
 module.exports = {
