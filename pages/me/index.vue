@@ -32,6 +32,18 @@
 
     <!-- 二级入口 -->
     <view class="me-section">
+      <view class="me-row" @click="goCompany">
+        <text class="me-row-label">公司信息</text>
+        <text class="me-row-arrow">›</text>
+      </view>
+      <view class="me-row" @click="goEmailRecords">
+        <text class="me-row-label">邮件记录</text>
+        <text class="me-row-arrow">›</text>
+      </view>
+      <view class="me-row" @click="goSmsRecords">
+        <text class="me-row-label">短信记录</text>
+        <text class="me-row-arrow">›</text>
+      </view>
       <view class="me-row" @click="goSettings">
         <text class="me-row-label">设置</text>
         <text class="me-row-arrow">›</text>
@@ -76,6 +88,9 @@ async function loadProfile() {
 function goScan() { uni.navigateTo({ url: "/pages/scan/index" }); }
 function goTodo() { uni.navigateTo({ url: "/pages/todo/list" }); }
 function goChangePassword() { uni.navigateTo({ url: "/pages/me/change-password" }); }
+function goCompany() { uni.navigateTo({ url: "/pages/me/company" }); }
+function goEmailRecords() { uni.navigateTo({ url: "/pages/message/email-records" }); }
+function goSmsRecords() { uni.navigateTo({ url: "/pages/message/sms-records" }); }
 function goSettings() { uni.navigateTo({ url: "/pages/me/settings" }); }
 function goAbout() { uni.navigateTo({ url: "/pages/me/about" }); }
 

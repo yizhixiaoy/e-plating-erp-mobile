@@ -513,7 +513,31 @@ async function handleLogin() {
     };
     
     if (loginType.value === 'PASSWORD') {
-      Object.assign(loginData, { username: username.value, password: password.value });
+      // RSA 加密密码传输
+      try {
+        const JSEncrypt = (await import("jsencrypt")).default;
+        const clientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const keyResp = await uni.request({
+          url: `${apiBase}/auth/public-key`,
+          method: "GET",
+          data: { clientId }
+        });
+        const publicKey = keyResp.data?.data?.publicKey;
+        if (publicKey) {
+          const enc = new JSEncrypt();
+          enc.setPublicKey(publicKey);
+          const encrypted = enc.encrypt(password.value);
+          if (encrypted) {
+            Object.assign(loginData, { username: username.value, password: encrypted, rsaClientId: clientId });
+          } else {
+            Object.assign(loginData, { username: username.value, password: password.value });
+          }
+        } else {
+          Object.assign(loginData, { username: username.value, password: password.value });
+        }
+      } catch {
+        Object.assign(loginData, { username: username.value, password: password.value });
+      }
     } else if (loginType.value === 'SMS_CODE') {
       Object.assign(loginData, { phone: phone.value, smsCode: smsCode.value });
     }

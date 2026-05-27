@@ -21,7 +21,14 @@
     { "path": "pages/me/change-password", "style": { "navigationBarTitleText": "修改密码" } },
     { "path": "pages/me/settings", "style": { "navigationBarTitleText": "设置" } },
     { "path": "pages/me/about", "style": { "navigationBarTitleText": "关于" } },
-    { "path": "pages/scan/index", "style": { "navigationBarTitleText": "扫一扫", "navigationStyle": "custom" } }
+    { "path": "pages/scan/index", "style": { "navigationBarTitleText": "扫一扫", "navigationStyle": "custom" } },
+    { "path": "pages/chat/list", "style": { "navigationBarTitleText": "消息", "navigationStyle": "custom" } },
+    { "path": "pages/chat/conversation", "style": { "navigationBarTitleText": "聊天", "navigationStyle": "custom" } },
+    { "path": "pages/chat/new-chat", "style": { "navigationBarTitleText": "发起聊天" } },
+    { "path": "pages/chat/forward", "style": { "navigationBarTitleText": "转发到" } },
+    { "path": "pages/me/company", "style": { "navigationBarTitleText": "公司信息" } },
+    { "path": "pages/message/email-records", "style": { "navigationBarTitleText": "邮件记录" } },
+    { "path": "pages/message/sms-records", "style": { "navigationBarTitleText": "短信记录" } }
   ],
   "tabBar": {
     "color": "#64748b",
@@ -30,6 +37,7 @@
     "borderStyle": "black",
     "list": [
       { "pagePath": "pages/workbench/index", "text": "工作台" },
+      { "pagePath": "pages/chat/list", "text": "聊天" },
       { "pagePath": "pages/message/list", "text": "消息" },
       { "pagePath": "pages/contacts/index", "text": "通讯录" },
       { "pagePath": "pages/me/index", "text": "我的" }

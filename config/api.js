@@ -58,7 +58,33 @@ const config = {
     profile: "/mobile/me/profile",
     password: "/mobile/me/password",
     settingsGet: "/mobile/me/settings",
-    settingsPut: "/mobile/me/settings"
+    settingsPut: "/mobile/me/settings",
+    company: "/mobile/me/company",
+    emailRecords: "/mobile/me/email-records",
+    smsRecords: "/mobile/me/sms-records"
+  },
+
+  // 聊天
+  chat: {
+    conversations: "/chat/conversations",
+    conversationDetail: "/chat/conversations/{id}",
+    messages: "/chat/conversations/{id}/messages",
+    send: "/chat/messages",
+    recall: "/chat/messages/{id}/recall",
+    edit: "/chat/messages/{id}/edit",
+    read: "/chat/conversations/read",
+    pinned: "/chat/conversations/pinned",
+    muted: "/chat/conversations/muted",
+    createSingle: "/chat/conversations/single",
+    createGroup: "/chat/conversations/group",
+    contactsSearch: "/chat/contacts/search",
+    unreadSummary: "/chat/unread/summary",
+    deleteConversation: "/chat/conversations/{id}"
+  },
+
+  // 文件
+  file: {
+    upload: "/files/upload"
   },
 
   // 字典

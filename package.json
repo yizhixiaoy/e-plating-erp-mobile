@@ -6,6 +6,7 @@
     "dev": "echo \"Use HBuilderX or uni CLI to run\""
   },
   "dependencies": {
+    "jsencrypt": "^3.5.4",
     "sm-crypto": "^0.4.0"
   }
 }

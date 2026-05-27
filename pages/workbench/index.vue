@@ -137,10 +137,10 @@ const stats = ref({
 
 const quickAccess = ref([
   { key: "scan", label: "扫一扫", color: "#3b82f6", iconText: "扫" },
+  { key: "chat", label: "聊天", color: "#06b6d4", iconText: "聊" },
   { key: "contacts", label: "通讯录", color: "#10b981", iconText: "联" },
   { key: "message", label: "消息", color: "#f59e0b", iconText: "信" },
-  { key: "todo", label: "待办", color: "#8b5cf6", iconText: "办" },
-  { key: "settings", label: "设置", color: "#64748b", iconText: "设" }
+  { key: "todo", label: "待办", color: "#8b5cf6", iconText: "办" }
 ]);
 
 const currentTab = ref("todo");
@@ -204,10 +204,10 @@ async function refreshAll() {
 
 function onQuickClick(q) {
   if (q.key === "scan") goScan();
+  else if (q.key === "chat") uni.switchTab({ url: "/pages/chat/list" });
   else if (q.key === "contacts") uni.switchTab({ url: "/pages/contacts/index" });
   else if (q.key === "message") uni.switchTab({ url: "/pages/message/list" });
   else if (q.key === "todo") goTodo();
-  else if (q.key === "settings") uni.navigateTo({ url: "/pages/me/settings" });
 }
 
 function goScan() {
