@@ -74,6 +74,33 @@ function redirectToLogin() {
   uni.reLaunch({ url: "/pages/auth/login" });
 }
 
+// 尝试刷新AccessToken（返回新token或null）
+async function tryRefreshToken() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+  
+  const config = require("../config/api.js");
+  return new Promise((resolve) => {
+    uni.request({
+      url: config.getUrl("/auth/refresh"),
+      method: "POST",
+      data: { refreshToken },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          const accessToken = res.data?.data?.accessToken;
+          if (accessToken) {
+            setToken(accessToken);
+            resolve(accessToken);
+            return;
+          }
+        }
+        resolve(null);
+      },
+      fail: () => resolve(null)
+    });
+  });
+}
+
 // ---------- 通信会话密钥 ----------
 
 function saveSessionKey(rawKey) {
@@ -112,5 +139,6 @@ module.exports = {
   getTenantCode,
   setTenantCode,
   clearAuth,
-  redirectToLogin
+  redirectToLogin,
+  tryRefreshToken
 };

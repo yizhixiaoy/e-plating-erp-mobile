@@ -28,7 +28,10 @@
     { "path": "pages/chat/forward", "style": { "navigationBarTitleText": "转发到" } },
     { "path": "pages/me/company", "style": { "navigationBarTitleText": "公司信息" } },
     { "path": "pages/message/email-records", "style": { "navigationBarTitleText": "邮件记录" } },
-    { "path": "pages/message/sms-records", "style": { "navigationBarTitleText": "短信记录" } }
+    { "path": "pages/message/sms-records", "style": { "navigationBarTitleText": "短信记录" } },
+    { "path": "pages/ai/chat", "style": { "navigationBarTitleText": "AI对话", "navigationStyle": "custom" } },
+    { "path": "pages/ai/writer", "style": { "navigationBarTitleText": "AI写作" } },
+    { "path": "pages/ai/knowledge", "style": { "navigationBarTitleText": "知识库" } }
   ],
   "tabBar": {
     "color": "#64748b",
