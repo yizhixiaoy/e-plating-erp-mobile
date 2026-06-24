@@ -53,6 +53,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { request } from "../../utils/request.js"
 
 const kbList = ref([])
 const currentKb = ref(null)
@@ -61,21 +62,12 @@ const loading = ref(false)
 
 onMounted(() => loadKbList())
 
-async function getHeaders() {
-  const { getToken } = await import('@/utils/auth.js')
-  return { Authorization: `Bearer ${getToken() || ''}` }
-}
-
 async function loadKbList() {
   try {
-    const headers = await getHeaders()
-    const [err, res] = await uni.request({
+    const res = await request({
       url: '/api/ai/knowledge?page_num=1&page_size=100',
-      header: headers,
     })
-    if (!err && res.statusCode === 200) {
-      kbList.value = res.data.items || []
-    }
+    kbList.value = res.data?.items || []
   } catch (e) { /* ignore */ }
 }
 
@@ -87,14 +79,10 @@ async function selectKb(kb) {
 async function loadDocuments() {
   if (!currentKb.value) return
   try {
-    const headers = await getHeaders()
-    const [err, res] = await uni.request({
+    const res = await request({
       url: `/api/ai/knowledge/${currentKb.value.id}/documents?page_num=1&page_size=50`,
-      header: headers,
     })
-    if (!err && res.statusCode === 200) {
-      docList.value = res.data.items || []
-    }
+    docList.value = res.data?.items || []
   } catch (e) { /* ignore */ }
 }
 
@@ -106,11 +94,9 @@ async function deleteDoc(doc) {
   if (!value) return
 
   try {
-    const headers = await getHeaders()
-    await uni.request({
+    await request({
       url: `/api/ai/knowledge/${currentKb.value.id}/documents/${doc.id}`,
       method: 'DELETE',
-      header: headers,
     })
     uni.showToast({ title: '已删除', icon: 'success' })
     loadDocuments()
@@ -138,13 +124,14 @@ function chooseFile() {
 function uploadFile(filePath, fileName) {
   return new Promise(async (resolve, reject) => {
     loading.value = true
-    const headers = await getHeaders()
+    const { getToken } = await import('@/utils/auth.js')
+    const token = getToken() || ''
 
     uni.uploadFile({
       url: `/api/ai/knowledge/${currentKb.value.id}/documents`,
       filePath,
       name: 'file',
-      header: headers,
+      header: { Authorization: `Bearer ${token}` },
       success: (res) => {
         try {
           const data = JSON.parse(res.data)

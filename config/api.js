@@ -106,4 +106,4 @@ config.fillPath = function(path, params) {
   });
 };
 
-module.exports = config;
+export default config;

@@ -1,12 +1,48 @@
 // 移动端请求封装：自动注入 token、统一错误处理、Long 精度安全、SM4 字段加解密
-const config = require("../config/api.js");
-const auth = require("./auth.js");
-const crypto = require("./crypto.js");
+// Token 刷新策略与 Web 端（http.ts）保持一致
+import config from "../config/api.js";
+import * as auth from "./auth.js";
+import * as crypto from "./crypto.js";
 
 function buildUrl(path) {
   if (!path) return config.apiBase;
   if (/^https?:\/\//i.test(path)) return path;
   return config.apiBase + (path.startsWith("/") ? path : "/" + path);
+}
+
+// 正在刷新 Token 的标志（与 Web 端一致）
+let isRefreshing = false;
+// 等待 Token 刷新的请求队列（与 Web 端一致）
+let refreshSubscribers = [];
+const TOKEN_EXPIRE_MSG = "登录已过期，请重新登录";
+
+function subscribeTokenRefresh(callback) {
+  refreshSubscribers.push(callback);
+}
+
+function onTokenRefreshed(newToken) {
+  refreshSubscribers.forEach(cb => cb(newToken));
+  refreshSubscribers = [];
+}
+
+async function doRefreshToken() {
+  const refreshToken = auth.getRefreshToken();
+  if (!refreshToken) return null;
+  try {
+    const res = await uni.request({
+      url: buildUrl("/auth/refresh"),
+      method: "POST",
+      data: { refreshToken }
+    });
+    const accessToken = res.data?.data?.accessToken;
+    if (accessToken) {
+      auth.setToken(accessToken);
+      return accessToken;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function request(options) {
@@ -34,16 +70,15 @@ function request(options) {
       success: (res) => {
         const status = res.statusCode;
         if (status === 401) {
-          uni.showToast({ title: "登录已过期", icon: "none" });
-          auth.redirectToLogin();
-          reject(new Error("UNAUTHORIZED"));
+          // 与 Web 端一致：先尝试刷新 Token，再重试
+          handleUnauthorized(options, resolve, reject);
           return;
         }
         if (status >= 200 && status < 300) {
-          // 业务层返回 { code, message, data }
+          // 业务层返回 { code, msg, data }
           const body = res.data;
           if (body && typeof body === "object" && "code" in body) {
-            if (body.code === 200 || body.code === 0) {
+            if (body.code === 200) {
               // 响应字段解密
               if (crypto.hasSessionKey() && body.data && typeof body.data === 'object') {
                 body.data = decryptResponseFields(body.data);
@@ -51,7 +86,7 @@ function request(options) {
               resolve(body);
             } else {
               if (!options.silent) {
-                uni.showToast({ title: body.message || "请求失败", icon: "none" });
+                uni.showToast({ title: body.msg || body.message || "请求失败", icon: "none" });
               }
               reject(body);
             }
@@ -72,6 +107,105 @@ function request(options) {
         reject(err);
       }
     });
+  });
+}
+
+// 处理 401：先尝试刷新 Token，成功后重试，失败后跳转登录（与 Web 端一致）
+function handleUnauthorized(options, resolve, reject) {
+  if (isRefreshing) {
+    // 如果正在刷新，等待刷新完成后续请求重试
+    subscribeTokenRefresh((newToken) => {
+      options.header = options.header || {};
+      options.header["Authorization"] = "Bearer " + newToken;
+      retryRequest(options, resolve, reject);
+    });
+    return;
+  }
+  
+  isRefreshing = true;
+  
+  doRefreshToken().then((newToken) => {
+    if (newToken) {
+      // 通知所有等待的请求使用新 Token
+      onTokenRefreshed(newToken);
+      // 重试当前请求
+      options.header = options.header || {};
+      options.header["Authorization"] = "Bearer " + newToken;
+      retryRequest(options, resolve, reject);
+    } else {
+      // Refresh Token 也失败了，跳转登录
+      uni.showToast({ title: TOKEN_EXPIRE_MSG, icon: "none" });
+      auth.redirectToLogin();
+      reject(new Error("UNAUTHORIZED"));
+    }
+  }).catch(() => {
+    // 刷新异常，跳转登录
+    uni.showToast({ title: TOKEN_EXPIRE_MSG, icon: "none" });
+    auth.redirectToLogin();
+    reject(new Error("UNAUTHORIZED"));
+  }).finally(() => {
+    isRefreshing = false;
+  });
+}
+
+// 使用新 Token 重试原始请求
+function retryRequest(options, resolve, reject) {
+  // 重新构建 header
+  const header = Object.assign({
+    "Content-Type": "application/json"
+  }, options.header || {});
+  const token = auth.getToken();
+  if (token) header["Authorization"] = "Bearer " + token;
+  
+  // 重试时同样需要加密请求字段
+  let data = options.data;
+  if (crypto.hasSessionKey() && data && typeof data === 'object' && !Array.isArray(data)) {
+    data = encryptRequestFields(data);
+  }
+  
+  uni.request({
+    url: buildUrl(options.url),
+    method: options.method || "GET",
+    data: data,
+    header,
+    timeout: options.timeout || 15000,
+    success: (res) => {
+      const status = res.statusCode;
+      if (status >= 200 && status < 300) {
+        const body = res.data;
+        if (body && typeof body === "object" && "code" in body) {
+          if (body.code === 200) {
+            if (crypto.hasSessionKey() && body.data && typeof body.data === 'object') {
+              body.data = decryptResponseFields(body.data);
+            }
+            resolve(body);
+          } else {
+            if (!options.silent) {
+              uni.showToast({ title: body.msg || body.message || "请求失败", icon: "none" });
+            }
+            reject(body);
+          }
+        } else {
+          resolve({ code: 200, data: body });
+        }
+      } else if (status === 401) {
+        // 重试后仍然 401 → 跳转登录（与 Web 端一致）
+        uni.showToast({ title: TOKEN_EXPIRE_MSG, icon: "none" });
+        auth.redirectToLogin();
+        reject(new Error("UNAUTHORIZED"));
+      } else {
+        if (!options.silent) {
+          uni.showToast({ title: "网络异常(" + status + ")", icon: "none" });
+        }
+        reject(res);
+      }
+    },
+    fail: (err) => {
+      if (!options.silent) {
+        uni.showToast({ title: "网络请求失败", icon: "none" });
+      }
+      reject(err);
+    }
   });
 }
 
@@ -162,4 +296,4 @@ function decryptResponseFields(data) {
   }
 }
 
-module.exports = { request, get, post, put, patch, del };
+export { request, get, post, put, patch, del };

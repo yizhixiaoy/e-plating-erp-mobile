@@ -29,8 +29,8 @@
 
 <script setup>
 import { ref } from "vue";
-const http = require("../../utils/request.js");
-const apiCfg = require("../../config/api.js");
+import * as http from "../../utils/request.js";
+import apiCfg from "../../config/api.js";
 
 const form = ref({ oldPassword: "", newPassword: "", confirm: "" });
 const submitting = ref(false);

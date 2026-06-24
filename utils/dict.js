@@ -1,6 +1,6 @@
 // 字典缓存：内存级缓存 + 并发去重，对齐 web 端 src/api/dict.ts
 // 后端返回字段为 dictLabel/dictValue，统一在此映射为 { label, value }
-const http = require("./request.js");
+import * as http from "./request.js";
 
 const dictCache = new Map();
 const pending = new Map();
@@ -39,4 +39,4 @@ function clearDictCache(dictType) {
   else dictCache.clear();
 }
 
-module.exports = { fetchDictData, getDictLabel, clearDictCache };
+export { fetchDictData, getDictLabel, clearDictCache };

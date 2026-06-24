@@ -13,16 +13,12 @@
       
       <view class="info-section">
         <view class="info-item">
-          <text class="info-label">登录设备：</text>
-          <text class="info-value">{{ deviceInfo }}</text>
+          <text class="info-label">当前用户：</text>
+          <text class="info-value">{{ currentUser?.realName || currentUser?.username || '未知' }}</text>
         </view>
         <view class="info-item">
-          <text class="info-label">登录时间：</text>
-          <text class="info-value">{{ loginTime }}</text>
-        </view>
-        <view class="info-item">
-          <text class="info-label">登录IP：</text>
-          <text class="info-value">{{ loginIp }}</text>
+          <text class="info-label">企业：</text>
+          <text class="info-value">{{ currentUser?.companyName || '未知' }}</text>
         </view>
       </view>
 
@@ -38,59 +34,50 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-
-// 基础配置
-const apiBase = "http://localhost:8080/api/v1";
+import apiConfig from "../../config/api.js";
+import * as auth from "../../utils/auth.js";
+import { request } from "../../utils/request.js";
 
 // 状态管理
 const qrToken = ref("");
 const loading = ref(false);
-const deviceInfo = ref("Web端");
-const loginTime = ref("");
-const loginIp = ref("");
+
+// 当前登录用户信息（从存储中读取）
+const currentUser = ref(null);
 
 // 生命周期
 onMounted(() => {
-  // 获取URL参数中的qrToken
+  // 获取URL参数（兼容 ticket / qrToken 两个参数名）
   const pages = getCurrentPages();
   const currentPage = pages[pages.length - 1];
   const options = currentPage.options;
-  qrToken.value = options.qrToken || "";
+  qrToken.value = options.qrToken || options.ticket || "";
   
-  if (qrToken.value) {
-    fetchScanInfo();
+  currentUser.value = auth.getUserInfo();
+  
+  if (qrToken.value && currentUser.value) {
+    notifyScan();
   } else {
     uni.showToast({ title: "无效的扫码链接", icon: "none" });
     setTimeout(() => {
       uni.navigateBack();
     }, 1500);
   }
-  
-  // 设置当前时间
-  const now = new Date();
-  loginTime.value = now.toLocaleString();
-  // 模拟IP
-  loginIp.value = "192.168.1.100";
 });
 
-// 获取扫码信息
-async function fetchScanInfo() {
+// 通知后端已扫码
+async function notifyScan() {
   try {
-    const token = uni.getStorageSync("token");
-    const resp = await uni.request({
-      url: `${apiBase}/auth/scan-status`,
-      method: "GET",
-      header: { Authorization: `Bearer ${token}` },
-      data: { qrToken: qrToken.value }
+    await request({
+      url: apiConfig.getUrl("/auth/scan"),
+      method: "POST",
+      data: {
+        qrToken: qrToken.value,
+        userId: currentUser.value.userId
+      }
     });
-    
-    if (resp.data?.data) {
-      const scanData = resp.data.data;
-      deviceInfo.value = scanData.clientType || "未知设备";
-      // 可以从后端获取更多信息
-    }
   } catch (error) {
-    console.error('获取扫码信息失败:', error);
+    console.error('通知扫码失败:', error);
   }
 }
 
@@ -101,23 +88,32 @@ async function handleConfirm() {
     return;
   }
   
+  if (!currentUser.value) {
+    uni.showToast({ title: "用户信息缺失，请重新登录", icon: "none" });
+    return;
+  }
+  
   loading.value = true;
   try {
-    const token = uni.getStorageSync("token");
-    const resp = await uni.request({
-      url: `${apiBase}/auth/scan-confirm`,
+    const resp = await request({
+      url: apiConfig.getUrl("/auth/scan-confirm"),
       method: "POST",
-      header: { Authorization: `Bearer ${token}` },
-      data: { qrToken: qrToken.value, confirm: true }
+      data: {
+        qrToken: qrToken.value,
+        confirm: true,
+        userId: currentUser.value.userId,
+        tenantId: currentUser.value.tenantId,
+        username: currentUser.value.username
+      }
     });
     
-    if (resp.data?.code === 0) {
+    if (resp?.code === 200) {
       uni.showToast({ title: "登录已确认", icon: "success" });
       setTimeout(() => {
         uni.navigateBack();
       }, 1500);
     } else {
-      uni.showToast({ title: resp.data?.message || "确认失败", icon: "none" });
+      uni.showToast({ title: resp.data?.msg || "确认失败", icon: "none" });
     }
   } catch (error) {
     uni.showToast({ title: "确认失败，请稍后重试", icon: "none" });
@@ -134,12 +130,14 @@ async function handleCancel() {
   }
   
   try {
-    const token = uni.getStorageSync("token");
-    const resp = await uni.request({
-      url: `${apiBase}/auth/scan-confirm`,
+    await request({
+      url: apiConfig.getUrl("/auth/scan-confirm"),
       method: "POST",
-      header: { Authorization: `Bearer ${token}` },
-      data: { qrToken: qrToken.value, confirm: false }
+      data: {
+        qrToken: qrToken.value,
+        confirm: false,
+        userId: currentUser.value?.userId
+      }
     });
     
     uni.showToast({ title: "已取消登录", icon: "none" });

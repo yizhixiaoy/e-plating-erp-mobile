@@ -30,12 +30,11 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-
-// 导入配置文件
-const config = require("../../config/api.js");
+import apiConfig from "../../config/api.js";
+import { request } from "../../utils/request.js";
 
 // 基础配置
-const apiBase = config.apiBase;
+const apiBase = apiConfig.apiBase;
 
 // 状态管理
 const id = ref("");
@@ -63,15 +62,13 @@ async function loadMessage() {
   
   loading.value = true;
   try {
-    const token = uni.getStorageSync("token");
-    const resp = await uni.request({
+    const resp = await request({
       url: `${apiBase}/message/notices/${id.value}`,
-      method: "GET",
-      header: { Authorization: `Bearer ${token}` }
+      method: "GET"
     });
     
-    if (resp.data?.code === 0 && resp.data?.data) {
-      message.value = resp.data.data;
+    if (resp?.code === 200 && resp?.data) {
+      message.value = resp.data;
       // 标记为已读
       markAsRead();
     }
@@ -87,11 +84,9 @@ async function markAsRead() {
   if (!id.value) return;
   
   try {
-    const token = uni.getStorageSync("token");
-    await uni.request({
+    await request({
       url: `${apiBase}/mobile/messages/${id.value}/read`,
-      method: "PATCH",
-      header: { Authorization: `Bearer ${token}` }
+      method: "PATCH"
     });
   } catch (error) {
     console.error('标记消息已读失败:', error);

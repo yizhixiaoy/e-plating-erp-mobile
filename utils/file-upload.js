@@ -1,6 +1,6 @@
 // 文件上传工具：封装 uni.uploadFile，自动注入 token
-const config = require("../config/api.js");
-const auth = require("./auth.js");
+import config from "../config/api.js";
+import * as auth from "./auth.js";
 
 /**
  * 上传文件到服务器
@@ -50,4 +50,4 @@ function uploadFile(filePath, module) {
   });
 }
 
-module.exports = { uploadFile };
+export { uploadFile };

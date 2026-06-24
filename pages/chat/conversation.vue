@@ -147,10 +147,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
-const http = require("../../utils/request.js");
-const auth = require("../../utils/auth.js");
-const apiCfg = require("../../config/api.js");
-const { uploadFile } = require("../../utils/file-upload.js");
+import * as http from "../../utils/request.js";
+import * as auth from "../../utils/auth.js";
+import apiCfg from "../../config/api.js";
+import { uploadFile } from "../../utils/file-upload.js";
 
 const conversationId = ref(null);
 const convName = ref("");

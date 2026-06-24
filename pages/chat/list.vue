@@ -75,9 +75,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-const http = require("../../utils/request.js");
-const auth = require("../../utils/auth.js");
-const apiCfg = require("../../config/api.js");
+import * as http from "../../utils/request.js";
+import * as auth from "../../utils/auth.js";
+import apiCfg from "../../config/api.js";
 
 const conversations = ref([]);
 const currentTab = ref("all");

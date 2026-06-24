@@ -5,43 +5,21 @@
       <text class="slogan">智慧电镀管理平台</text>
     </view>
 
-    <!-- 租户选择 -->
-    <view v-if="step === 'tenant'" class="tenant-section">
-      <text class="section-title">选择企业</text>
-      
-      <!-- 最近登录企业 -->
-      <view v-if="recentTenants.length > 0" class="recent-tenants">
-        <text class="subtitle">最近登录</text>
-        <view v-for="tenant in recentTenants" :key="tenant.shortCode" class="tenant-item" @click="selectTenant(tenant)">
-          <text class="tenant-name">{{ tenant.tenantName }}</text>
-          <text class="tenant-code">{{ tenant.shortCode }}</text>
-        </view>
-      </view>
-      
-      <!-- 搜索企业 -->
-      <view class="search-section">
-        <view class="search-input-container">
-          <input v-model="tenantSearch" @input="searchTenants" placeholder="搜索企业名称或编码" class="search-input" />
-          <text v-if="tenantSearch" @click="clearSearch" class="clear-btn">×</text>
-        </view>
-        <view v-if="searchResults.length > 0" class="search-results">
-          <view v-for="tenant in searchResults" :key="tenant.shortCode" class="tenant-item" @click="selectTenant(tenant)">
-            <text class="tenant-name">{{ tenant.tenantName }}</text>
-            <text class="tenant-code">{{ tenant.shortCode }}</text>
-          </view>
-        </view>
-      </view>
-      
-      <button @click="backToRole" class="back-btn">返回</button>
-    </view>
-
     <!-- 登录表单 -->
-    <view v-else-if="step === 'login'" class="login-section">
+    <view class="login-section">
       <!-- 登录方式切换 -->
       <view class="login-tabs">
         <view :class="['tab', loginType === 'PASSWORD' ? 'active' : '']" @click="loginType = 'PASSWORD'">账号密码</view>
         <view :class="['tab', loginType === 'SMS_CODE' ? 'active' : '']" @click="loginType = 'SMS_CODE'">短信验证</view>
         <view :class="['tab', loginType === 'SCAN_CODE' ? 'active' : '']" @click="loginType = 'SCAN_CODE'">扫码登录</view>
+      </view>
+
+      <!-- 租户信息 - 账号反显 -->
+      <view v-if="autoTenantInfo" class="tenant-badge">
+        <view class="tenant-badge-inner">
+          <text class="tenant-name-small">{{ autoTenantInfo.tenantName }}</text>
+          <text class="tenant-code-small">{{ autoTenantInfo.shortCode }}</text>
+        </view>
       </view>
 
       <!-- 账号密码登录 -->
@@ -58,7 +36,7 @@
         </view>
         <view class="form-item">
           <checkbox v-model="rememberTenant" class="checkbox" />
-          <text class="checkbox-label">记住当前企业</text>
+          <text class="checkbox-label">记住当前用户</text>
         </view>
       </view>
 
@@ -85,11 +63,15 @@
       <view v-else-if="loginType === 'SCAN_CODE'" class="login-form">
         <view class="qr-container">
           <view class="qr-code" @click="refreshQrCode">
-            <text>扫码登录</text>
-            <text class="qr-tip">请使用企业APP扫描二维码</text>
+            <image v-if="qrImage" :src="qrImage" mode="widthFix" class="qr-img" />
+            <view v-else class="qr-placeholder">
+              <text>扫码登录</text>
+              <text class="qr-tip">请使用企业APP扫描二维码</text>
+            </view>
             <text class="qr-expire">有效期：{{ qrExpire }}</text>
           </view>
         </view>
+        <text v-if="scanStatus" class="scan-status">{{ scanStatus }}</text>
         <button @click="refreshQrCode" class="refresh-btn">刷新二维码</button>
       </view>
 
@@ -143,24 +125,33 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 
 // 导入配置文件
-const config = require("../../config/api.js");
-const auth = require("../../utils/auth.js");
+import apiConfig from "../../config/api.js";
+import * as auth from "../../utils/auth.js";
+
+// 导入统一校验
+import {
+  validateUsername as validateUsr,
+  validatePassword as validatePwd,
+  validatePhone as validatePhn,
+  validateCode,
+  validateConfirmPassword as checkConfirmPassword,
+  filterUsername,
+  filterPassword as filterPwd,
+  filterPhone,
+  filterCode
+} from "../../utils/validation.js";
 
 // 基础配置
-const apiBase = config.apiBase;
-const LAST_TENANT_CODE_KEY = config.storageKeys.lastTenantCode;
+const apiBase = apiConfig.apiBase;
+const LAST_TENANT_CODE_KEY = apiConfig.storageKeys.lastTenantCode;
 
 // 状态管理
-const step = ref("login");
-const selectedTenant = ref(null);
 const loginType = ref("PASSWORD");
-const tenantSearch = ref("");
-const searchResults = ref([]);
-const recentTenants = ref([]);
-const searching = ref(false);
+const autoTenantInfo = ref(null);
+let tenantFetchTimeout = null;
 
 // 表单数据
 const username = ref("");
@@ -182,6 +173,10 @@ const smsSending = ref(false);
 const qrExpire = ref("02:00");
 const qrExpireSeconds = ref(120);
 let qrTimer = null;
+let scanPollTimer = null;
+const qrImage = ref("");
+const qrToken = ref("");
+const scanStatus = ref("");
 
 // 忘记密码
 const showForgotPassword = ref(false);
@@ -214,176 +209,162 @@ const canResetPassword = computed(() => {
 
 // 生命周期
 onMounted(() => {
-  fetchRecentTenants();
-  const lastCode = uni.getStorageSync(LAST_TENANT_CODE_KEY);
-  if (lastCode) {
-    selectedTenant.value = {
-      shortCode: lastCode,
-      tenantName: lastCode === "a" ? "演示租户A" : lastCode,
-    };
+  // 等待用户输入账号后自动反显企业信息
+});
+
+onUnmounted(() => {
+  if (qrTimer) {
+    clearInterval(qrTimer);
+    qrTimer = null;
   }
+  stopScanPoll();
 });
 
 // 监听登录方式变化
 watch(loginType, (newType) => {
   if (newType === "SCAN_CODE") {
     startQrCountdown();
+    refreshQrCode();
   } else if (qrTimer) {
     clearInterval(qrTimer);
+    qrTimer = null;
+  }
+  if (newType !== "SCAN_CODE") {
+    stopScanPoll();
+    scanStatus.value = "";
   }
 });
 
-// 租户选择
-async function fetchRecentTenants() {
-  try {
-    const token = uni.getStorageSync("token");
-    if (token) {
-      const resp = await uni.request({
-        url: `${apiBase}/auth/tenants/recent`,
-        method: "GET",
-        header: { Authorization: `Bearer ${token}` }
-      });
-      if (resp.data?.data) {
-        recentTenants.value = resp.data.data;
-      }
-    } else {
-      const lastCode = uni.getStorageSync(LAST_TENANT_CODE_KEY);
-      if (lastCode) {
-        recentTenants.value = [{
-          shortCode: lastCode,
-          tenantName: lastCode === "a" ? "演示租户A" : lastCode,
-        }];
-      }
-    }
-  } catch (error) {
-    console.error('获取最近租户失败:', error);
+// 实时过滤 + 校验 + 账号反查企业（与 Web 端一致）
+watch(username, (val) => {
+  const filtered = filterUsername(val);
+  if (filtered !== val) username.value = filtered;
+  usernameError.value = val ? validateUsr(username.value) : "";
+  
+  // 清除之前的定时器
+  if (tenantFetchTimeout) {
+    clearTimeout(tenantFetchTimeout);
+    tenantFetchTimeout = null;
   }
-}
+  // 输入有效且格式正确时延迟查询租户信息
+  if (val && !usernameError.value) {
+    tenantFetchTimeout = setTimeout(() => {
+      fetchTenantByUsername();
+    }, 500);
+  } else {
+    autoTenantInfo.value = null;
+  }
+});
 
-async function searchTenants() {
-  if (!tenantSearch.value.trim()) {
-    searchResults.value = [];
+watch(password, (val) => {
+  const filtered = filterPwd(val);
+  if (filtered !== val) password.value = filtered;
+  passwordError.value = val ? validatePwd(password.value) : "";
+});
+
+watch(phone, (val) => {
+  const filtered = filterPhone(val);
+  if (filtered !== val) phone.value = filtered;
+  phoneError.value = val ? validatePhn(phone.value) : "";
+});
+
+watch(smsCode, (val) => {
+  const filtered = filterCode(val);
+  if (filtered !== val) smsCode.value = filtered;
+  smsCodeError.value = val ? validateCode(smsCode.value) : "";
+});
+
+// 忘记密码表单实时校验
+watch(forgotPhone, (val) => {
+  forgotPhone.value = filterPhone(val);
+  forgotPhoneError.value = val ? validatePhn(forgotPhone.value) : "";
+});
+
+watch(forgotSmsCode, (val) => {
+  forgotSmsCode.value = filterCode(val);
+  forgotSmsCodeError.value = val ? validateCode(forgotSmsCode.value) : "";
+});
+
+watch(newPassword, (val) => {
+  newPassword.value = filterPwd(val);
+  newPasswordError.value = val ? validatePwd(newPassword.value) : "";
+});
+
+watch(confirmPassword, (val) => {
+  confirmPasswordError.value = val ? checkConfirmPassword(val, newPassword.value) : "";
+});
+
+// 账号反查企业（与 Web 端一致）
+async function fetchTenantByUsername() {
+  if (!username.value || usernameError.value) {
+    autoTenantInfo.value = null;
     return;
   }
-  
-  searching.value = true;
   try {
     const resp = await uni.request({
-      url: `${apiBase}/auth/tenants/search`,
-      method: "GET",
-      data: { keyword: tenantSearch.value, limit: 10 }
+      url: `${apiBase}/auth/tenants/by-username?username=${encodeURIComponent(username.value)}`,
+      method: "GET"
     });
-    if (resp.data?.data) {
-      searchResults.value = resp.data.data;
+    if (resp.data?.code === 200 && resp.data?.data?.found) {
+      const data = resp.data.data;
+      autoTenantInfo.value = {
+        shortCode: data.shortCode,
+        tenantName: data.tenantName,
+        logoUrl: data.logoUrl,
+        tenantId: data.tenantId,
+        realName: data.realName,
+        phone: data.phone,
+        email: data.email
+      };
+    } else {
+      autoTenantInfo.value = null;
     }
   } catch (error) {
-    console.error('搜索租户失败:', error);
-  } finally {
-    searching.value = false;
+    console.error('账号反查企业失败:', error);
+    autoTenantInfo.value = null;
   }
 }
 
-function clearSearch() {
-  tenantSearch.value = "";
-  searchResults.value = [];
-}
-
-function selectTenant(tenant) {
-  selectedTenant.value = tenant;
-  if (rememberTenant.value) {
-    uni.setStorageSync(LAST_TENANT_CODE_KEY, tenant.shortCode);
-  }
-  step.value = "login";
-}
-
-function backToRole() {
-  step.value = "login";
-}
-
-// 表单验证
+// 表单验证（使用统一校验模块）
 function validateUsername() {
-  if (!username.value) {
-    usernameError.value = "请输入账号";
-  } else if (username.value.length < 2 || username.value.length > 64) {
-    usernameError.value = "账号长度需在2-64个字符之间";
-  } else if (!/^[a-zA-Z0-9:@._-]+$/.test(username.value)) {
-    usernameError.value = "账号只能包含字母、数字和特殊字符(:@._-)";
-  } else {
-    usernameError.value = "";
-  }
+  usernameError.value = validateUsr(username.value);
+  return usernameError.value;
 }
 
 function validatePassword() {
-  if (!password.value) {
-    passwordError.value = "请输入密码";
-  } else if (password.value.length < 6 || password.value.length > 64) {
-    passwordError.value = "密码长度需在6-64个字符之间";
-  } else {
-    passwordError.value = "";
-  }
+  passwordError.value = validatePwd(password.value);
+  return passwordError.value;
 }
 
 function validatePhone() {
-  const phoneRegex = /^1\d{10}$/;
-  if (!phone.value) {
-    phoneError.value = "请输入手机号";
-  } else if (!phoneRegex.test(phone.value)) {
-    phoneError.value = "手机号格式不正确";
-  } else {
-    phoneError.value = "";
-  }
+  phoneError.value = validatePhn(phone.value);
+  return phoneError.value;
 }
 
 function validateSmsCode() {
-  if (!smsCode.value) {
-    smsCodeError.value = "请输入验证码";
-  } else if (smsCode.value.length !== 6) {
-    smsCodeError.value = "验证码长度为6位";
-  } else {
-    smsCodeError.value = "";
-  }
+  smsCodeError.value = validateCode(smsCode.value);
+  return smsCodeError.value;
 }
 
-// 忘记密码验证
+// 忘记密码验证（使用统一校验模块）
 function validateForgotPhone() {
-  const phoneRegex = /^1\d{10}$/;
-  if (!forgotPhone.value) {
-    forgotPhoneError.value = "请输入手机号";
-  } else if (!phoneRegex.test(forgotPhone.value)) {
-    forgotPhoneError.value = "手机号格式不正确";
-  } else {
-    forgotPhoneError.value = "";
-  }
+  forgotPhoneError.value = validatePhn(forgotPhone.value);
+  return forgotPhoneError.value;
 }
 
 function validateForgotSmsCode() {
-  if (!forgotSmsCode.value) {
-    forgotSmsCodeError.value = "请输入验证码";
-  } else if (forgotSmsCode.value.length !== 6) {
-    forgotSmsCodeError.value = "验证码长度为6位";
-  } else {
-    forgotSmsCodeError.value = "";
-  }
+  forgotSmsCodeError.value = validateCode(forgotSmsCode.value);
+  return forgotSmsCodeError.value;
 }
 
 function validateNewPassword() {
-  if (!newPassword.value) {
-    newPasswordError.value = "请输入新密码";
-  } else if (newPassword.value.length < 8 || newPassword.value.length > 64) {
-    newPasswordError.value = "密码长度需在8-64个字符之间";
-  } else {
-    newPasswordError.value = "";
-  }
+  newPasswordError.value = validatePwd(newPassword.value);
+  return newPasswordError.value;
 }
 
 function validateConfirmPassword() {
-  if (!confirmPassword.value) {
-    confirmPasswordError.value = "请确认密码";
-  } else if (confirmPassword.value !== newPassword.value) {
-    confirmPasswordError.value = "两次输入的密码不一致";
-  } else {
-    confirmPasswordError.value = "";
-  }
+  confirmPasswordError.value = checkConfirmPassword(confirmPassword.value, newPassword.value);
+  return confirmPasswordError.value;
 }
 
 // 验证码发送
@@ -399,11 +380,11 @@ async function sendSmsCode() {
       method: "POST",
       data: {
         phone: phone.value,
-        tenantCode: selectedTenant.value?.shortCode,
+        tenantCode: autoTenantInfo.value?.shortCode,
         scene: "LOGIN"
       }
     });
-    if (resp.data?.code === 0) {
+    if (resp.data?.code === 200 && resp.data?.data) {
       uni.showToast({ title: "验证码已发送，请注意查收", icon: "success" });
       smsCountdown.value = 60;
       const timer = setInterval(() => {
@@ -413,7 +394,7 @@ async function sendSmsCode() {
         }
       }, 1000);
     } else {
-      uni.showToast({ title: resp.data?.message || "验证码发送失败", icon: "none" });
+      uni.showToast({ title: resp.data?.msg || "验证码发送失败", icon: "none" });
     }
   } catch (error) {
     uni.showToast({ title: "验证码发送失败，请稍后重试", icon: "none" });
@@ -434,11 +415,11 @@ async function sendForgotSmsCode() {
       method: "POST",
       data: {
         phone: forgotPhone.value,
-        tenantCode: selectedTenant.value?.shortCode,
+        tenantCode: autoTenantInfo.value?.shortCode,
         scene: "FORGOT_PASSWORD"
       }
     });
-    if (resp.data?.code === 0) {
+    if (resp.data?.code === 200 && resp.data?.data) {
       uni.showToast({ title: "验证码已发送，请注意查收", icon: "success" });
       forgotSmsCountdown.value = 60;
       const timer = setInterval(() => {
@@ -448,7 +429,7 @@ async function sendForgotSmsCode() {
         }
       }, 1000);
     } else {
-      uni.showToast({ title: resp.data?.message || "验证码发送失败", icon: "none" });
+      uni.showToast({ title: resp.data?.msg || "验证码发送失败", icon: "none" });
     }
   } catch (error) {
     uni.showToast({ title: "验证码发送失败，请稍后重试", icon: "none" });
@@ -481,35 +462,117 @@ function updateQrExpireDisplay() {
 }
 
 async function refreshQrCode() {
+  stopScanPoll();
+  scanStatus.value = "";
   try {
     const resp = await uni.request({
       url: `${apiBase}/auth/scan-ticket`,
       method: "POST",
-      data: { clientType: "APP" }
+      data: { clientType: "H5" }
     });
-    if (resp.data?.code === 0 && resp.data?.data?.qrToken) {
-      // 这里应该生成二维码，暂时用模拟数据
-      startQrCountdown();
-      uni.showToast({ title: "二维码已刷新", icon: "success" });
+    if (resp.data?.code === 200 && resp.data?.data) {
+      const data = resp.data.data;
+      if (data.qrImage) {
+        qrImage.value = data.qrImage;
+      }
+      if (data.qrToken) {
+        qrToken.value = data.qrToken;
+        if (data.expiresIn) {
+          qrExpireSeconds.value = data.expiresIn;
+          updateQrExpireDisplay();
+        }
+        startQrCountdown();
+        startScanPoll();
+        uni.showToast({ title: "二维码已刷新", icon: "success" });
+      }
     }
   } catch (error) {
     uni.showToast({ title: "二维码刷新失败", icon: "none" });
   }
 }
 
+// 扫码状态轮询
+function startScanPoll() {
+  scanStatus.value = "等待扫码...";
+  scanPollTimer = setInterval(async () => {
+    if (!qrToken.value) return;
+    try {
+      const resp = await uni.request({
+        url: `${apiBase}/auth/scan-status`,
+        method: "GET",
+        data: { qrToken: qrToken.value }
+      });
+      if (resp.data?.code === 200) {
+        const data = resp.data.data;
+        if (data.status === "SCANNED") {
+          scanStatus.value = "已扫码，请在手机端确认登录";
+        } else if (data.status === "CONFIRMED") {
+          stopScanPoll();
+          clearInterval(qrTimer);
+          scanStatus.value = "登录成功，正在跳转...";
+          // 自动完成登录
+          if (data.accessToken) {
+            auth.setToken(data.accessToken);
+            if (data.refreshToken) {
+              auth.setRefreshToken(data.refreshToken);
+            }
+            if (data.userInfo) {
+              auth.setUserInfo(data.userInfo);
+            }
+            if (data.sessionKey) {
+              auth.saveSessionKey(data.sessionKey);
+            }
+            uni.switchTab({ url: "/pages/message/list" });
+          }
+        } else if (data.status === "EXPIRED") {
+          stopScanPoll();
+          qrImage.value = "";
+          scanStatus.value = "二维码已过期，点击刷新";
+          uni.showToast({ title: "二维码已过期", icon: "none" });
+        }
+      }
+    } catch (error) {
+      console.error('扫码状态轮询失败:', error);
+    }
+  }, 2000);
+}
+
+function stopScanPoll() {
+  if (scanPollTimer) {
+    clearInterval(scanPollTimer);
+    scanPollTimer = null;
+  }
+}
+
 // 登录处理
 async function handleLogin() {
-  if (!selectedTenant.value) {
-    uni.showToast({ title: "请先选择企业", icon: "none" });
-    return;
+  // 先校验表单（与 Web 端一致）
+  if (loginType.value === 'PASSWORD') {
+    validateUsername();
+    validatePassword();
+    if (usernameError.value || passwordError.value) return;
+  } else if (loginType.value === 'SMS_CODE') {
+    const phoneErr = validatePhone();
+    const codeErr = validateSmsCode();
+    if (phoneErr || codeErr) return;
   }
   
   loading.value = true;
   try {
+    // 获取设备信息
+    // #ifdef H5
+    const deviceInfo = navigator.platform || 'Unknown';
+    const userAgent = navigator.userAgent;
+    // #endif
+    
     let loginData = {
       loginType: loginType.value,
-      tenantCode: selectedTenant.value.shortCode,
-      clientType: "APP"
+      tenantCode: autoTenantInfo.value?.shortCode || '',
+      clientType: "H5",
+      // #ifdef H5
+      deviceInfo: deviceInfo,
+      userAgent: userAgent
+      // #endif
     };
     
     if (loginType.value === 'PASSWORD') {
@@ -548,7 +611,7 @@ async function handleLogin() {
       data: loginData
     });
     
-    if (resp.data?.code === 0 && resp.data?.data?.accessToken) {
+    if (resp.data?.code === 200 && resp.data?.data?.accessToken) {
       const token = resp.data.data.accessToken;
       const userInfo = resp.data.data.userInfo;
       const sessionKey = resp.data.data.sessionKey;
@@ -564,11 +627,11 @@ async function handleLogin() {
         auth.saveSessionKey(sessionKey);
       }
       if (rememberTenant.value) {
-        uni.setStorageSync(LAST_TENANT_CODE_KEY, selectedTenant.value.shortCode);
+        uni.setStorageSync(LAST_TENANT_CODE_KEY, autoTenantInfo.value?.shortCode || '');
       }
-      uni.navigateTo({ url: "/pages/message/list" });
+      uni.switchTab({ url: "/pages/message/list" });
     } else {
-      uni.showToast({ title: resp.data?.message || "登录失败", icon: "none" });
+      uni.showToast({ title: resp.data?.msg || "登录失败", icon: "none" });
     }
   } catch (error) {
     uni.showToast({ title: "登录失败，请稍后重试", icon: "none" });
@@ -579,10 +642,12 @@ async function handleLogin() {
 
 // 忘记密码处理
 async function handleForgotPassword() {
-  if (!selectedTenant.value) {
-    uni.showToast({ title: "请先选择企业", icon: "none" });
-    return;
-  }
+  // 先校验所有字段（与 Web 端一致）
+  const phoneErr = validateForgotPhone();
+  const codeErr = validateForgotSmsCode();
+  const pwdErr = validateNewPassword();
+  const confirmErr = validateConfirmPassword();
+  if (phoneErr || codeErr || pwdErr || confirmErr) return;
   
   forgotLoading.value = true;
   try {
@@ -593,11 +658,11 @@ async function handleForgotPassword() {
         phone: forgotPhone.value,
         smsCode: forgotSmsCode.value,
         newPassword: newPassword.value,
-        tenantCode: selectedTenant.value.shortCode
+        tenantCode: autoTenantInfo.value?.shortCode || ''
       }
     });
     
-    if (resp.data?.code === 0) {
+    if (resp.data?.code === 200 && resp.data?.data) {
       uni.showToast({ title: "密码重置成功", icon: "success" });
       showForgotPassword.value = false;
       // 重置表单
@@ -610,7 +675,7 @@ async function handleForgotPassword() {
       newPasswordError.value = "";
       confirmPasswordError.value = "";
     } else {
-      uni.showToast({ title: resp.data?.message || "密码重置失败", icon: "none" });
+      uni.showToast({ title: resp.data?.msg || "密码重置失败", icon: "none" });
     }
   } catch (error) {
     uni.showToast({ title: "密码重置失败，请稍后重试", icon: "none" });
@@ -646,89 +711,32 @@ async function handleForgotPassword() {
   display: block;
 }
 
-.tenant-section {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: bold;
+.tenant-badge {
   margin-bottom: 16px;
-  color: #1e293b;
+  padding: 8px 12px;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
 }
 
-.subtitle {
-  font-size: 14px;
-  color: #64748b;
-  margin: 12px 0 8px;
-}
-
-.tenant-item {
-  padding: 12px;
-  border-bottom: 1px solid #e2e8f0;
+.tenant-badge-inner {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
-.tenant-name {
+.tenant-name-small {
   font-size: 14px;
-  color: #1e293b;
+  font-weight: 500;
+  color: #0369a1;
 }
 
-.tenant-code {
+.tenant-code-small {
   font-size: 12px;
   color: #64748b;
-  background-color: #f1f5f9;
+  background-color: #e0f2fe;
   padding: 2px 8px;
   border-radius: 4px;
-}
-
-.search-section {
-  margin-top: 16px;
-}
-
-.search-input-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input {
-  flex: 1;
-  padding: 10px 32px 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.clear-btn {
-  position: absolute;
-  right: 12px;
-  font-size: 18px;
-  color: #94a3b8;
-}
-
-.search-results {
-  margin-top: 8px;
-  background-color: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.back-btn {
-  margin-top: 16px;
-  padding: 10px;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  background-color: #fff;
-  color: #3b82f6;
-  font-size: 14px;
 }
 
 .login-section {
@@ -839,7 +847,7 @@ async function handleForgotPassword() {
 
 .qr-code {
   width: 200px;
-  height: 200px;
+  min-height: 200px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   display: flex;
@@ -847,6 +855,26 @@ async function handleForgotPassword() {
   justify-content: center;
   align-items: center;
   background-color: #f8fafc;
+  overflow: hidden;
+}
+
+.qr-img {
+  width: 180px;
+  height: 180px;
+  display: block;
+}
+
+.qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.qr-placeholder text:first-child {
+  font-size: 14px;
+  color: #64748b;
 }
 
 .qr-tip {
@@ -858,7 +886,16 @@ async function handleForgotPassword() {
 .qr-expire {
   font-size: 12px;
   color: #94a3b8;
-  margin-top: 4px;
+  margin-top: 8px;
+  padding-bottom: 12px;
+}
+
+.scan-status {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  color: #3b82f6;
+  margin-top: 12px;
 }
 
 .refresh-btn {

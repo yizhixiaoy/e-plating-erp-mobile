@@ -46,8 +46,8 @@
 <script setup>
 import { ref, computed } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
-const http = require("../../utils/request.js");
-const apiCfg = require("../../config/api.js");
+import * as http from "../../utils/request.js";
+import apiCfg from "../../config/api.js";
 
 const conversations = ref([]);
 const selected = ref([]);

@@ -8,7 +8,7 @@
  * 加密格式：hex( IV(16B) + ciphertext )
  */
 
-const { sm4, sm3 } = require('sm-crypto');
+import { sm4, sm3 } from 'sm-crypto';
 
 // ---------- 常量 ----------
 
@@ -154,7 +154,7 @@ const ENCRYPTED_RESPONSE_FIELDS = new Set([
   'companyPhone', 'leaderName', 'newPassword'
 ]);
 
-module.exports = {
+export {
   encryptStorage,
   decryptStorage,
   setSessionKey,

@@ -2,7 +2,7 @@
 // 所有 token / userInfo / tenantCode 读写都走这里，避免散落 uni.getStorageSync
 // userInfo 使用 SM4 加密存储
 
-const crypto = require('./crypto.js');
+import * as crypto from './crypto.js';
 
 const STORAGE_KEYS = {
   token: "token",
@@ -79,7 +79,7 @@ async function tryRefreshToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
   
-  const config = require("../config/api.js");
+  const { default: config } = await import("../config/api.js");
   return new Promise((resolve) => {
     uni.request({
       url: config.getUrl("/auth/refresh"),
@@ -126,7 +126,7 @@ function getSessionKey() {
   return null;
 }
 
-module.exports = {
+export {
   saveSessionKey,
   getSessionKey,
   STORAGE_KEYS,

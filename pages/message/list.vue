@@ -66,10 +66,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-const http = require("../../utils/request.js");
-const dict = require("../../utils/dict.js");
-const auth = require("../../utils/auth.js");
-const apiCfg = require("../../config/api.js");
+import * as http from "../../utils/request.js";
+import * as dict from "../../utils/dict.js";
+import * as auth from "../../utils/auth.js";
+import apiCfg from "../../config/api.js";
 
 const rows = ref([]);
 const currentTab = ref("all");

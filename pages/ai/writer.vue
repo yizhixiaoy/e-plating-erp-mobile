@@ -122,8 +122,8 @@ async function startWrite() {
   resultContent.value = ''
   outline.value = ''
 
-  const { getToken, redirectToLogin } = await import('@/utils/auth.js')
-  const token = getToken() || ''
+  const authModule = await import('@/utils/auth.js')
+  const token = authModule.getToken() || ''
 
   uni.request({
     url: '/api/ai/write',
@@ -155,9 +155,7 @@ async function startWrite() {
               case 'outline': outline.value += data.content; break
               case 'chunk': resultContent.value += data.content; break
               case 'token_expired':
-                uni.showToast({ title: data.message || '认证已过期，请重新登录', icon: 'none' })
-                redirectToLogin()
-                generating.value = false
+                handleTokenExpired()
                 return
               case 'done':
                 resultContent.value = data.full_content || resultContent.value
@@ -177,6 +175,18 @@ async function startWrite() {
       generating.value = false
     }
   })
+}
+
+async function handleTokenExpired() {
+  const authModule = await import('@/utils/auth.js')
+  const newToken = await authModule.tryRefreshToken()
+  if (newToken) {
+    uni.showToast({ title: '令牌已刷新，请重新发送', icon: 'none' })
+  } else {
+    uni.showToast({ title: '认证已过期，请重新登录', icon: 'none' })
+    authModule.redirectToLogin()
+  }
+  generating.value = false
 }
 
 function copyResult() {
