@@ -29,7 +29,19 @@ export async function streamChat(query, conversationId, callbacks) {
           try {
             const data = JSON.parse(line.slice(6))
             switch (currentEvent) {
-              case 'thinking': callbacks.onThinking?.(data.content); break
+              case 'thinking':
+                if (data.is_plan) {
+                  callbacks.onPlan?.(data.content, data.plan_steps)
+                } else {
+                  callbacks.onThinking?.(data.content)
+                }
+                break
+              case 'tool_start':
+                callbacks.onToolStart?.(data.tool_name, data.tool_params, data.step_index); break
+              case 'tool_end':
+                callbacks.onToolEnd?.(data.tool_name, data.result_summary, data.step_index); break
+              case 'tool_error':
+                callbacks.onToolError?.(data.tool_name, data.error_msg, data.step_index); break
               case 'chunk': callbacks.onChunk?.(data.content); break
               case 'reference': callbacks.onReference?.(data); break
               case 'token_expired':
