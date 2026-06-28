@@ -1,4 +1,8 @@
 import App from './App'
+import { getSessionKey } from './utils/auth'
+
+// 恢复会话密钥（SM4 解密响应字段用，必须在任何请求之前执行）
+getSessionKey()
 
 // #ifndef VUE3
 import Vue from 'vue'

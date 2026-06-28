@@ -498,9 +498,8 @@ function startScanPoll() {
     if (!qrToken.value) return;
     try {
       const resp = await uni.request({
-        url: `${apiBase}/auth/scan-status`,
-        method: "GET",
-        data: { qrToken: qrToken.value }
+        url: `${apiBase}/auth/scan-status?qrToken=${encodeURIComponent(qrToken.value)}`,
+        method: "GET"
       });
       if (resp.data?.code === 200) {
         const data = resp.data.data;
@@ -581,9 +580,8 @@ async function handleLogin() {
         const JSEncrypt = (await import("jsencrypt")).default;
         const clientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const keyResp = await uni.request({
-          url: `${apiBase}/auth/public-key`,
-          method: "GET",
-          data: { clientId }
+          url: `${apiBase}/auth/public-key?clientId=${encodeURIComponent(clientId)}`,
+          method: "GET"
         });
         const publicKey = keyResp.data?.data?.publicKey;
         if (publicKey) {
@@ -688,7 +686,7 @@ async function handleForgotPassword() {
 <style scoped>
 .login-container {
   padding: 16px;
-  min-height: 100vh;
+  min-height: 100%;
   background-color: #f5f7fa;
 }
 

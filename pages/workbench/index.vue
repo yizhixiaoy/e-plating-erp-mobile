@@ -4,7 +4,8 @@
     <view class="wb-header">
       <view class="wb-header-row">
         <view class="wb-avatar">
-          <text class="wb-avatar-text">{{ avatarInitial }}</text>
+          <image v-if="userAvatarUrl" :src="userAvatarUrl" class="wb-avatar-img" mode="aspectFill" />
+          <text v-else class="wb-avatar-text">{{ avatarInitial }}</text>
         </view>
         <view class="wb-greet">
           <text class="wb-greet-hi">{{ greeting }}，{{ userName }}</text>
@@ -36,88 +37,94 @@
       </view>
     </view>
 
-    <!-- 快捷入口 -->
-    <view class="wb-card">
-      <view class="wb-card-title">
-        <text>快捷入口</text>
-      </view>
-      <view class="wb-quick-grid">
-        <view class="wb-quick-item" v-for="q in quickAccess" :key="q.key" @click="onQuickClick(q)">
-          <view class="wb-quick-icon" :style="{ background: q.color }">
-            <text class="wb-quick-icon-text">{{ q.iconText }}</text>
-          </view>
-          <text class="wb-quick-label">{{ q.label }}</text>
+    <!-- 可滚动内容区 -->
+    <scroll-view scroll-y class="wb-scroll">
+      <!-- 快捷入口 -->
+      <view class="wb-card">
+        <view class="wb-card-title">
+          <text>快捷入口</text>
         </view>
-      </view>
-    </view>
-
-    <!-- 内容 Tab：待办 / 系统通知 / 内部公告 -->
-    <view class="wb-card">
-      <view class="wb-tabs">
-        <view
-          v-for="tab in tabs"
-          :key="tab.key"
-          :class="['wb-tab', currentTab === tab.key ? 'active' : '']"
-          @click="currentTab = tab.key"
-        >
-          <text>{{ tab.label }}</text>
-          <text v-if="tab.count > 0" class="wb-tab-badge">{{ tab.count }}</text>
+        <view class="wb-quick-grid">
+          <view class="wb-quick-item" v-for="q in quickAccess" :key="q.key" @click="onQuickClick(q)">
+            <view class="wb-quick-icon" :style="{ background: q.color }">
+              <text class="wb-quick-icon-text">{{ q.iconText }}</text>
+            </view>
+            <text class="wb-quick-label">{{ q.label }}</text>
+          </view>
         </view>
       </view>
 
-      <view class="wb-tab-body">
-        <!-- 待办 -->
-        <block v-if="currentTab === 'todo'">
-          <view v-if="todoList.length === 0" class="wb-empty">
-            <text>暂无待办</text>
-          </view>
+      <!-- 内容 Tab：待办 / 系统通知 / 内部公告 -->
+      <view class="wb-card">
+        <view class="wb-tabs">
           <view
-            v-for="t in todoList"
-            :key="t.id"
-            class="wb-list-row"
-            @click="goTodoDetail(t.id)"
+            v-for="tab in tabs"
+            :key="tab.key"
+            :class="['wb-tab', currentTab === tab.key ? 'active' : '']"
+            @click="currentTab = tab.key"
           >
-            <view class="wb-list-main">
-              <text class="wb-list-title">{{ t.title }}</text>
-              <text class="wb-list-sub">{{ t.source || "系统" }} · {{ formatTime(t.createTime) }}</text>
-            </view>
-            <text class="wb-list-tag tag-pending">待处理</text>
+            <text>{{ tab.label }}</text>
+            <text v-if="tab.count > 0" class="wb-tab-badge">{{ tab.count }}</text>
           </view>
-        </block>
+        </view>
 
-        <!-- 系统通知 / 内部公告 -->
-        <block v-else>
-          <view v-if="filteredNotices.length === 0" class="wb-empty">
-            <text>暂无{{ currentTab === 'sys' ? '系统通知' : '内部公告' }}</text>
-          </view>
-          <view
-            v-for="m in filteredNotices"
-            :key="m.noticeId"
-            class="wb-list-row"
-            @click="goMessageDetail(m.noticeId)"
-          >
-            <view class="wb-list-main">
-              <text class="wb-list-title">{{ m.title }}</text>
-              <text class="wb-list-sub">{{ formatTime(m.publishTime) }}</text>
+        <view class="wb-tab-body">
+          <!-- 待办 -->
+          <block v-if="currentTab === 'todo'">
+            <view v-if="todoList.length === 0" class="wb-empty">
+              <text>暂无待办</text>
             </view>
-            <text v-if="m.readStatus === 0" class="wb-list-tag tag-unread">未读</text>
-          </view>
-        </block>
+            <view
+              v-for="t in todoList"
+              :key="t.id"
+              class="wb-list-row"
+              @click="goTodoDetail(t.id)"
+            >
+              <view class="wb-list-main">
+                <text class="wb-list-title">{{ t.title }}</text>
+                <text class="wb-list-sub">{{ t.source || "系统" }} · {{ formatTime(t.createTime) }}</text>
+              </view>
+              <text class="wb-list-tag tag-pending">待处理</text>
+            </view>
+          </block>
+
+          <!-- 系统通知 / 内部公告 -->
+          <block v-else>
+            <view v-if="filteredNotices.length === 0" class="wb-empty">
+              <text>暂无{{ currentTab === 'sys' ? '系统通知' : '内部公告' }}</text>
+            </view>
+            <view
+              v-for="m in filteredNotices"
+              :key="m.noticeId"
+              class="wb-list-row"
+              @click="goMessageDetail(m.noticeId)"
+            >
+              <view class="wb-list-main">
+                <text class="wb-list-title">{{ m.title }}</text>
+                <text class="wb-list-sub">{{ formatTime(m.publishTime) }}</text>
+              </view>
+              <text v-if="m.readStatus === 0" class="wb-list-tag tag-unread">未读</text>
+            </view>
+          </block>
+        </view>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
+import { onShow } from "@dcloudio/uni-app";
 import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
+import { getImageUrl } from "../../utils/image-url.js";
 
 const userInfo = ref(auth.getUserInfo() || {});
 const userName = computed(() => userInfo.value.realName || userInfo.value.username || "用户");
-const tenantName = computed(() => userInfo.value.tenantName || auth.getTenantCode() || "");
+const tenantName = computed(() => userInfo.value.tenantName || userInfo.value.companyName || auth.getTenantCode() || "");
 const avatarInitial = computed(() => (userName.value || "U").slice(0, 1).toUpperCase());
+const userAvatarUrl = computed(() => getImageUrl(userInfo.value.avatarUrl, "avatar.jpg"));
 
 const greeting = computed(() => {
   const h = new Date().getHours();
@@ -135,13 +142,16 @@ const stats = ref({
   onlineUsers: 0
 });
 
-const quickAccess = ref([
-  { key: "scan", label: "扫一扫", color: "#3b82f6", iconText: "扫" },
-  { key: "chat", label: "聊天", color: "#06b6d4", iconText: "聊" },
-  { key: "contacts", label: "通讯录", color: "#10b981", iconText: "联" },
-  { key: "message", label: "消息", color: "#f59e0b", iconText: "信" },
-  { key: "todo", label: "待办", color: "#8b5cf6", iconText: "办" }
-]);
+// 快捷入口：key → 展示样式映射（颜色/图标文字为纯 UI 属性，保留前端）
+const QUICK_STYLE = {
+  scan:     { color: "#3b82f6", iconText: "扫" },
+  ai:       { color: "#8b5cf6", iconText: "AI" },
+  chat:     { color: "#06b6d4", iconText: "聊" },
+  contacts: { color: "#10b981", iconText: "联" },
+  message:  { color: "#f59e0b", iconText: "信" },
+  todo:     { color: "#8b5cf6", iconText: "办" }
+};
+const quickAccess = ref([]);
 
 const currentTab = ref("todo");
 const tabs = computed(() => [
@@ -153,12 +163,16 @@ const tabs = computed(() => [
 const messages = ref([]);
 const todoList = ref([]);
 
-const sysCount = computed(() => messages.value.filter(m => m.noticeType === "SYS_UPDATE" && m.readStatus === 0).length);
+const sysCount = computed(() => messages.value.filter(m => m.readStatus === 0).length);
 const noticeCount = computed(() => messages.value.filter(m => m.noticeType === "INTERNAL_NOTICE" && m.readStatus === 0).length);
 
 const filteredNotices = computed(() => {
-  const type = currentTab.value === "sys" ? "SYS_UPDATE" : "INTERNAL_NOTICE";
-  return messages.value.filter(m => m.noticeType === type).slice(0, 10);
+  if (currentTab.value === "sys") {
+    // 系统通知：展示全部类型（system/work/approval/todo 等）
+    return messages.value.slice(0, 10);
+  }
+  // 内部公告：仅展示 INTERNAL_NOTICE 类型
+  return messages.value.filter(m => m.noticeType === "INTERNAL_NOTICE").slice(0, 10);
 });
 
 function formatTime(time) {
@@ -182,8 +196,8 @@ async function loadStats() {
 
 async function loadMessages() {
   try {
-    const res = await http.get(apiCfg.message.list, null, { silent: true });
-    messages.value = res.data || [];
+    const res = await http.get(apiCfg.message.list, { pageNum: 1, pageSize: 50 }, { silent: true });
+    messages.value = res.data?.records || res.data || [];
     // 兜底统计未读消息（即使 stats 桩失败）
     const unread = messages.value.filter(m => m.readStatus === 0).length;
     if (!stats.value.unreadMessages) stats.value.unreadMessages = unread;
@@ -192,18 +206,30 @@ async function loadMessages() {
 
 async function loadTodos() {
   try {
-    const res = await http.get(apiCfg.todo.list, null, { silent: true });
-    todoList.value = res.data || [];
+    const res = await http.get(apiCfg.todo.list, { pageNum: 1, pageSize: 20 }, { silent: true });
+    todoList.value = res.data?.records || res.data || [];
     if (!stats.value.pendingTodos) stats.value.pendingTodos = todoList.value.length;
   } catch (e) { todoList.value = []; }
 }
 
-async function refreshAll() {
-  await Promise.all([loadStats(), loadMessages(), loadTodos()]);
+async function loadQuickAccess() {
+  try {
+    const res = await http.get(apiCfg.workbench.quickAccess, null, { silent: true });
+    const items = res.data || [];
+    quickAccess.value = items.map(item => {
+      const style = QUICK_STYLE[item.key] || { color: "#6b7280", iconText: "?" };
+      return { key: item.key, label: item.label, color: style.color, iconText: style.iconText };
+    });
+  } catch (e) { /* 兜底：使用全部默认项 */ }
 }
+
+const refreshAll = async () => {
+  await Promise.all([loadStats(), loadMessages(), loadTodos(), loadQuickAccess()]);
+};
 
 function onQuickClick(q) {
   if (q.key === "scan") goScan();
+  else if (q.key === "ai") goAiChat();
   else if (q.key === "chat") uni.switchTab({ url: "/pages/chat/list" });
   else if (q.key === "contacts") uni.switchTab({ url: "/pages/contacts/index" });
   else if (q.key === "message") uni.switchTab({ url: "/pages/message/list" });
@@ -212,6 +238,9 @@ function onQuickClick(q) {
 
 function goScan() {
   uni.navigateTo({ url: "/pages/scan/index" });
+}
+function goAiChat() {
+  uni.navigateTo({ url: "/pages/ai/chat" });
 }
 function goMessage() {
   uni.switchTab({ url: "/pages/message/list" });
@@ -227,7 +256,7 @@ function goMessageDetail(id) {
   uni.navigateTo({ url: "/pages/message/detail?id=" + String(id) });
 }
 
-onMounted(() => {
+onShow(() => {
   if (!auth.getToken()) {
     uni.reLaunch({ url: "/pages/auth/login" });
     return;
@@ -242,28 +271,35 @@ if (typeof uni !== "undefined" && uni.$on) {
 </script>
 
 <script>
-// onPullDownRefresh / onShow 通过选项式导出（uni-app 兼容）
+// onPullDownRefresh 通过选项式导出（uni-app 兼容）
 export default {
   onPullDownRefresh() {
+    // 下拉刷新：重新加载数据
+    if (this.refreshAll) this.refreshAll();
     Promise.resolve().then(() => uni.stopPullDownRefresh());
   },
-  onShow() {
-    // 切换 Tab 回到工作台时刷新
-  }
 };
 </script>
 
 <style scoped>
 .wb-container {
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #f5f7fa;
-  padding-bottom: 24px;
+}
+
+.wb-scroll {
+  flex: 1;
+  min-height: 0;
 }
 
 .wb-header {
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   padding: 32px 16px 60px;
   color: #fff;
+  flex-shrink: 0;
 }
 
 .wb-header-row {
@@ -280,6 +316,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.wb-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .wb-avatar-text {
@@ -373,11 +416,11 @@ export default {
 }
 
 .wb-quick-item {
-  width: 20%;
+  width: 33.33%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .wb-quick-icon {

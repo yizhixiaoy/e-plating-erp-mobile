@@ -54,7 +54,7 @@ onMounted(() => { load(); });
 
 <style scoped>
 .company-container {
-  min-height: 100vh;
+  min-height: 100%;
   background-color: #f5f7fa;
 }
 

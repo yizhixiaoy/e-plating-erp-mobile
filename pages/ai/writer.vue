@@ -77,9 +77,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import config from '../../config/api.js'
+import { getToken, redirectToLogin, tryRefreshToken } from '../../utils/auth.js'
+import { getWriteTemplates } from '../../utils/ai-chat.js'
 
-const templates = [
+// 默认模板（API 获取失败时的兜底）
+const DEFAULT_TEMPLATES = [
   { type: 'report', name: '工作报告', icon: '📊' },
   { type: 'notice', name: '通知公告', icon: '📢' },
   { type: 'summary', name: '工作总结', icon: '📝' },
@@ -93,6 +97,7 @@ const styles = [
   { value: 'detailed', label: '详细' },
 ]
 
+const templates = ref([...DEFAULT_TEMPLATES])
 const selectedTemplate = ref('')
 const style = ref('formal')
 const wordCount = ref(500)
@@ -112,21 +117,139 @@ const topicPlaceholder = computed(() => {
   return map[selectedTemplate.value] || '请先选择写作类型'
 })
 
+function getAiUrl(path) {
+  return config.apiBase.replace(/\/api\/v1$/, '') + path
+}
+
 function selectTemplate(type) {
   selectedTemplate.value = type
 }
 
+// 加载模板列表
+onMounted(async () => {
+  try {
+    const data = await getWriteTemplates()
+    if (data && Array.isArray(data) && data.length > 0) {
+      templates.value = data
+    }
+  } catch (_) {
+    // 网络失败时使用默认模板
+  }
+})
+
+// 解析 SSE 流
+function parseSseStream(text, onEvent) {
+  const lines = text.split('\n')
+  let currentEvent = ''
+  for (const line of lines) {
+    if (line.startsWith('event: ')) {
+      currentEvent = line.slice(7).trim()
+    } else if (line.startsWith('data: ')) {
+      try {
+        const data = JSON.parse(line.slice(6))
+        onEvent(currentEvent, data)
+      } catch (_) { /* ignore */ }
+    }
+  }
+}
+
+// 开始写作（H5 使用 fetch ReadableStream 真流式）
 async function startWrite() {
   if (!topic.value.trim() || generating.value) return
+  if (!getToken()) {
+    redirectToLogin()
+    return
+  }
+
   generating.value = true
   resultContent.value = ''
   outline.value = ''
 
-  const authModule = await import('@/utils/auth.js')
-  const token = authModule.getToken() || ''
+  const token = getToken() || ''
 
+  // #ifdef H5
+  try {
+    const response = await fetch(getAiUrl('/api/ai/write'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        template_type: selectedTemplate.value,
+        topic: topic.value,
+        style: style.value,
+        word_count: wordCount.value,
+      })
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        await handleTokenExpired()
+        return
+      }
+      uni.showToast({ title: `请求失败(${response.status})`, icon: 'none' })
+      generating.value = false
+      return
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let currentEvent = ''
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim()
+          } else if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              switch (currentEvent) {
+                case 'outline':
+                  outline.value += data.content
+                  break
+                case 'chunk':
+                  resultContent.value += data.content
+                  break
+                case 'done':
+                  resultContent.value = data.full_content || resultContent.value
+                  generating.value = false
+                  break
+                case 'token_expired':
+                  await handleTokenExpired()
+                  return
+                case 'error':
+                  uni.showToast({ title: data.message, icon: 'none' })
+                  generating.value = false
+                  break
+              }
+            } catch (_) { /* ignore */ }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('SSE stream error:', e)
+      uni.showToast({ title: '连接异常', icon: 'none' })
+      generating.value = false
+    }
+  } catch (e) {
+    uni.showToast({ title: '请求失败', icon: 'none' })
+    generating.value = false
+  }
+  // #endif
+
+  // #ifndef H5
   uni.request({
-    url: '/api/ai/write',
+    url: getAiUrl('/api/ai/write'),
     method: 'POST',
     header: {
       'Content-Type': 'application/json',
@@ -141,50 +264,40 @@ async function startWrite() {
     responseType: 'text',
     enableChunked: true,
     success: (res) => {
-      const text = res.data || ''
-      const lines = text.split('\n')
       let currentEvent = ''
-
-      for (const line of lines) {
-        if (line.startsWith('event: ')) {
-          currentEvent = line.slice(7).trim()
-        } else if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6))
-            switch (currentEvent) {
-              case 'outline': outline.value += data.content; break
-              case 'chunk': resultContent.value += data.content; break
-              case 'token_expired':
-                handleTokenExpired()
-                return
-              case 'done':
-                resultContent.value = data.full_content || resultContent.value
-                generating.value = false
-                break
-              case 'error':
-                uni.showToast({ title: data.message, icon: 'none' })
-                generating.value = false
-                break
-            }
-          } catch (e) { /* ignore */ }
+      parseSseStream(res.data || '', (event, data) => {
+        switch (event) {
+          case 'outline': outline.value += data.content; break
+          case 'chunk': resultContent.value += data.content; break
+          case 'done':
+            resultContent.value = data.full_content || resultContent.value
+            generating.value = false
+            break
+          case 'token_expired':
+            handleTokenExpired()
+            break
+          case 'error':
+            uni.showToast({ title: data.message, icon: 'none' })
+            generating.value = false
+            break
         }
-      }
+      })
     },
-    fail: (err) => {
+    fail: () => {
       uni.showToast({ title: '请求失败', icon: 'none' })
       generating.value = false
     }
   })
+  // #endif
 }
 
 async function handleTokenExpired() {
-  const authModule = await import('@/utils/auth.js')
-  const newToken = await authModule.tryRefreshToken()
+  const newToken = await tryRefreshToken()
   if (newToken) {
     uni.showToast({ title: '令牌已刷新，请重新发送', icon: 'none' })
   } else {
     uni.showToast({ title: '认证已过期，请重新登录', icon: 'none' })
-    authModule.redirectToLogin()
+    redirectToLogin()
   }
   generating.value = false
 }
@@ -198,7 +311,7 @@ function copyResult() {
 </script>
 
 <style>
-.ai-writer-page { display: flex; flex-direction: column; height: 100vh; background: #f5f5f5; }
+.ai-writer-page { display: flex; flex-direction: column; height: 100%; background: #f5f5f5; }
 .template-bar { white-space: nowrap; padding: 12px; background: #fff; }
 .tpl-chip {
   display: inline-flex;
@@ -251,7 +364,7 @@ function copyResult() {
 
 .result-area { flex: 1; padding: 12px; }
 .result-content { background: #fff; padding: 14px; border-radius: 8px; }
-.result-text { font-size: 15px; line-height: 1.8; }
+.result-text { font-size: 15px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
 .cursor { color: #409eff; animation: blink 1s step-end infinite; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 

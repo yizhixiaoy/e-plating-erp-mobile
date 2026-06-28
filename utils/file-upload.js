@@ -10,13 +10,11 @@ import * as auth from "./auth.js";
  */
 function uploadFile(filePath, module) {
   const token = auth.getToken();
-  const tenantCode = auth.getTenantCode();
   const url = config.getUrl(config.file.upload);
 
   return new Promise((resolve, reject) => {
     const header = {};
     if (token) header["Authorization"] = "Bearer " + token;
-    if (tenantCode) header["X-Tenant-Code"] = tenantCode;
 
     uni.uploadFile({
       url,

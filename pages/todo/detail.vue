@@ -175,7 +175,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.detail-container { min-height: 100vh; background-color: #f5f7fa; padding-bottom: 80px; }
+.detail-container { min-height: 100%; background-color: #f5f7fa; padding-bottom: 80px; }
 .header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
 .back-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .back-icon { color: #fff; font-size: 20px; }

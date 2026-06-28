@@ -133,7 +133,8 @@ function encryptField(plaintext) {
 
 /** 解密单个字段（用于响应） */
 function decryptField(encrypted) {
-  if (!sessionKey || !encrypted) return encrypted;
+  if (!sessionKey) return encrypted;
+  if (!encrypted) return encrypted;
   try {
     return sm4Decrypt(sessionKey, encrypted);
   } catch (e) {

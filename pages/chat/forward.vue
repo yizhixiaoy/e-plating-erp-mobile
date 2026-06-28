@@ -22,7 +22,8 @@
         @click="toggleSelect(item)"
       >
         <view class="conv-avatar">
-          <text class="avatar-text">{{ getAvatarText(item) }}</text>
+          <image v-if="getImageUrl(item.peerAvatar || item.avatar)" :src="getImageUrl(item.peerAvatar || item.avatar)" class="conv-avatar-img" mode="aspectFill" />
+          <text v-else class="avatar-text">{{ getAvatarText(item) }}</text>
         </view>
         <view class="conv-info">
           <text class="conv-name">{{ getConvName(item) }}</text>
@@ -48,6 +49,7 @@ import { ref, computed } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
 import * as http from "../../utils/request.js";
 import apiCfg from "../../config/api.js";
+import { getImageUrl } from "../../utils/image-url.js";
 
 const conversations = ref([]);
 const selected = ref([]);
@@ -76,7 +78,7 @@ async function loadConversations() {
   loading.value = true;
   try {
     const res = await http.get(apiCfg.chat.conversations, { pageNum: 1, pageSize: 100 }, { silent: true });
-    conversations.value = res.data?.list || res.data || [];
+    conversations.value = res.data?.records || res.data || [];
   } catch (e) {
     conversations.value = [];
   } finally {
@@ -129,7 +131,7 @@ async function doForward() {
 .forward-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background-color: #f5f7fa;
 }
 
@@ -184,6 +186,13 @@ async function doForward() {
   align-items: center;
   justify-content: center;
   margin-right: 12px;
+  overflow: hidden;
+}
+
+.conv-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .avatar-text {

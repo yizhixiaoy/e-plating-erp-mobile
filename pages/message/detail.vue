@@ -15,7 +15,7 @@
     <view v-else-if="computedMessage" class="message-content">
       <text class="message-title">{{ computedMessage.title }}</text>
       <view class="message-meta">
-        <text class="message-time">{{ computedMessage.createTime }}</text>
+        <text class="message-time">{{ computedMessage.publishTime }}</text>
         <text class="message-type">{{ computedMessage.typeText }}</text>
       </view>
       <view class="message-body" v-html="computedMessage.content"></view>
@@ -32,22 +32,29 @@
 import { ref, onMounted, computed } from "vue";
 import apiConfig from "../../config/api.js";
 import { request } from "../../utils/request.js";
+import * as dict from "../../utils/dict.js";
 
 // 基础配置
 const apiBase = apiConfig.apiBase;
 
 // 状态管理
 const id = ref("");
+const readStatus = ref(0);
 const message = ref(null);
 const loading = ref(true);
+const noticeTypeItems = ref([]);
 
 // 生命周期
 onMounted(() => {
-  // 获取URL参数中的id
+  // 获取URL参数中的id和readStatus
   const pages = getCurrentPages();
   const currentPage = pages[pages.length - 1];
   const options = currentPage.options;
   id.value = options.id || "";
+  readStatus.value = parseInt(options.readStatus || "0", 10);
+  
+  // 加载字典
+  dict.fetchDictData("notice_type").then((items) => { noticeTypeItems.value = items; });
   
   if (id.value) {
     loadMessage();
@@ -63,14 +70,16 @@ async function loadMessage() {
   loading.value = true;
   try {
     const resp = await request({
-      url: `${apiBase}/message/notices/${id.value}`,
+      url: `${apiBase}/messages/notices/${id.value}`,
       method: "GET"
     });
     
     if (resp?.code === 200 && resp?.data) {
       message.value = resp.data;
-      // 标记为已读
-      markAsRead();
+      // 仅未读消息才标记已读，避免重复调用
+      if (readStatus.value === 0) {
+        markAsRead();
+      }
     }
   } catch (error) {
     console.error('加载消息详情失败:', error);
@@ -86,7 +95,7 @@ async function markAsRead() {
   try {
     await request({
       url: `${apiBase}/mobile/messages/${id.value}/read`,
-      method: "PATCH"
+      method: "PUT"
     });
   } catch (error) {
     console.error('标记消息已读失败:', error);
@@ -102,33 +111,27 @@ function goBack() {
 const computedMessage = computed(() => {
   if (!message.value) return null;
   
-  // 格式化消息类型
-  const typeMap = {
-    "SYS_UPDATE": "系统更新",
-    "NOTICE": "公告",
-    "ALERT": "提醒",
-    "TASK": "任务"
-  };
+  // 从字典获取消息类型标签
+  const typeText = dict.getDictLabel(noticeTypeItems.value, message.value.noticeType) || message.value.noticeType;
   
   // 格式化时间
-  let createTime = message.value.createTime;
-  if (createTime) {
-    // 假设createTime是ISO格式的字符串
-    const date = new Date(createTime);
-    createTime = date.toLocaleString();
+  let publishTime = message.value.publishTime || message.value.createdAt;
+  if (publishTime) {
+    const date = new Date(publishTime);
+    publishTime = date.toLocaleString();
   }
   
   return {
     ...message.value,
-    typeText: typeMap[message.value.noticeType] || message.value.noticeType,
-    createTime: createTime
+    typeText,
+    publishTime
   };
 });
 </script>
 
 <style scoped>
 .message-detail-container {
-  min-height: 100vh;
+  min-height: 100%;
   background-color: #f5f7fa;
 }
 

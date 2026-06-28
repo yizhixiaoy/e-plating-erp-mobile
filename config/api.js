@@ -3,6 +3,9 @@ const config = {
   // API基础URL
   apiBase: process.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1",
 
+  // 调试模式：true 时 request.js 输出请求日志
+  debug: true,
+
   // 存储键名
   storageKeys: {
     token: "token",

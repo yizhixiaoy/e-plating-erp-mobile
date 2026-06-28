@@ -54,6 +54,32 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { request } from "../../utils/request.js"
+import config from '../../config/api.js'
+
+// 文件校验常量（与 Web 端 upload.ts 一致）
+const MAX_KB_FILE_SIZE = 50 * 1024 * 1024  // 50MB
+const ALLOWED_EXTENSIONS = [
+  'pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx',
+  'txt', 'md', 'csv', 'json', 'png', 'jpg', 'jpeg'
+]
+
+function getAiUrl(path) {
+  return config.apiBase.replace(/\/api\/v1$/, '') + path
+}
+
+/** 校验文件类型和大小，返回 null 表示通过，否则返回错误信息 */
+function validateFile(file) {
+  const ext = (file.name || '').split('.').pop()?.toLowerCase() || ''
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return `不支持的文件类型: .${ext}，允许: ${ALLOWED_EXTENSIONS.join(', ')}`
+  }
+  if (file.size > MAX_KB_FILE_SIZE) {
+    const maxMB = (MAX_KB_FILE_SIZE / 1024 / 1024).toFixed(0)
+    const fileMB = (file.size / 1024 / 1024).toFixed(1)
+    return `${file.name} 大小 ${fileMB}MB 超过限制 (${maxMB}MB)`
+  }
+  return null
+}
 
 const kbList = ref([])
 const currentKb = ref(null)
@@ -65,7 +91,7 @@ onMounted(() => loadKbList())
 async function loadKbList() {
   try {
     const res = await request({
-      url: '/api/ai/knowledge?page_num=1&page_size=100',
+      url: getAiUrl('/api/ai/knowledge?page_num=1&page_size=100'),
     })
     kbList.value = res.data?.items || []
   } catch (e) { /* ignore */ }
@@ -80,7 +106,7 @@ async function loadDocuments() {
   if (!currentKb.value) return
   try {
     const res = await request({
-      url: `/api/ai/knowledge/${currentKb.value.id}/documents?page_num=1&page_size=50`,
+      url: getAiUrl(`/api/ai/knowledge/${currentKb.value.id}/documents?page_num=1&page_size=50`),
     })
     docList.value = res.data?.items || []
   } catch (e) { /* ignore */ }
@@ -95,7 +121,7 @@ async function deleteDoc(doc) {
 
   try {
     await request({
-      url: `/api/ai/knowledge/${currentKb.value.id}/documents/${doc.id}`,
+      url: getAiUrl(`/api/ai/knowledge/${currentKb.value.id}/documents/${doc.id}`),
       method: 'DELETE',
     })
     uni.showToast({ title: '已删除', icon: 'success' })
@@ -110,9 +136,15 @@ function chooseFile() {
   uni.chooseFile({
     count: 5,
     type: 'file',
-    extension: ['pdf', 'docx', 'xlsx', 'txt', 'md'],
+    extension: ALLOWED_EXTENSIONS,
     success: async (res) => {
       for (const file of res.tempFiles) {
+        // 前端校验文件类型和大小（与 Web 端一致）
+        const err = validateFile(file)
+        if (err) {
+          uni.showToast({ title: err, icon: 'none', duration: 3000 })
+          continue
+        }
         await uploadFile(file.path, file.name)
       }
       loadDocuments()
@@ -128,7 +160,7 @@ function uploadFile(filePath, fileName) {
     const token = getToken() || ''
 
     uni.uploadFile({
-      url: `/api/ai/knowledge/${currentKb.value.id}/documents`,
+      url: getAiUrl(`/api/ai/knowledge/${currentKb.value.id}/documents`),
       filePath,
       name: 'file',
       header: { Authorization: `Bearer ${token}` },
@@ -153,7 +185,7 @@ function uploadFile(filePath, fileName) {
 </script>
 
 <style>
-.ai-kb-page { display: flex; flex-direction: column; height: 100vh; background: #f5f5f5; }
+.ai-kb-page { display: flex; flex-direction: column; height: 100%; background: #f5f5f5; }
 .kb-list-section { background: #fff; padding: 8px 0; }
 .kb-scroll { white-space: nowrap; }
 .kb-tabs { display: inline-flex; gap: 8px; padding: 0 12px; }

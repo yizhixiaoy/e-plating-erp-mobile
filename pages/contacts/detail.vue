@@ -2,10 +2,11 @@
   <view class="cd-container">
     <view class="cd-card">
       <view class="cd-avatar">
-        <text>{{ initialOf(detail) }}</text>
+        <image v-if="getImageUrl(detail.avatarUrl)" :src="getImageUrl(detail.avatarUrl)" class="cd-avatar-img" mode="aspectFill" />
+        <text v-else>{{ initialOf(detail) }}</text>
       </view>
       <text class="cd-name">{{ detail.realName || detail.username || "成员" }}</text>
-      <text v-if="detail.positionName" class="cd-position">{{ detail.positionName }}</text>
+      <text v-if="detail.position" class="cd-position">{{ detail.position }}</text>
     </view>
 
     <view class="cd-section">
@@ -33,9 +34,9 @@
       </view>
     </view>
 
-    <view v-if="detail.phone" class="cd-actions">
-      <view class="cd-btn primary" @click="callPhone">拨打电话</view>
-      <view class="cd-btn ghost" @click="copyEmail">复制邮箱</view>
+    <view class="cd-actions">
+      <view class="cd-btn primary" @click="startChat">发起会话</view>
+      <view v-if="detail.phone" class="cd-btn ghost" @click="callPhone">拨打电话</view>
     </view>
   </view>
 </template>
@@ -45,9 +46,11 @@ import { ref, computed, onMounted } from "vue";
 import * as http from "../../utils/request.js";
 import * as dict from "../../utils/dict.js";
 import apiCfg from "../../config/api.js";
+import { getImageUrl } from "../../utils/image-url.js";
 
 const detail = ref({});
 const statusItems = ref([]);
+const chatLoading = ref(false);
 
 const statusLabel = computed(() => {
   return dict.getDictLabel(statusItems.value, detail.value.status) || (detail.value.status === 0 ? "正常" : "停用");
@@ -79,6 +82,32 @@ function copyEmail() {
   });
 }
 
+async function startChat() {
+  if (!detail.value.id || chatLoading.value) return;
+  chatLoading.value = true;
+  try {
+    const res = await http.post(apiCfg.chat.createSingle, { peerUserId: detail.value.id }, { silent: true });
+    const conv = res.data;
+    if (conv && conv.id) {
+      const name = encodeURIComponent(detail.value.realName || detail.value.username || "聊天");
+      const meta = encodeURIComponent(JSON.stringify({
+        peerUserId: detail.value.id,
+        peerAvatar: detail.value.avatarUrl || "",
+        memberCount: conv.memberCount || 2,
+        pinned: 0,
+        muted: 0
+      }));
+      uni.navigateTo({ url: "/pages/chat/conversation?id=" + String(conv.id) + "&name=" + name + "&convType=SINGLE&meta=" + meta });
+    } else {
+      uni.showToast({ title: "创建会话失败", icon: "none" });
+    }
+  } catch (e) {
+    uni.showToast({ title: "创建会话失败", icon: "none" });
+  } finally {
+    chatLoading.value = false;
+  }
+}
+
 onMounted(() => {
   // ID 全程字符串处理
   // eslint-disable-next-line no-undef
@@ -92,7 +121,7 @@ onMounted(() => {
 
 <style scoped>
 .cd-container {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f5f7fa;
   padding-bottom: 24px;
 }
@@ -118,6 +147,13 @@ onMounted(() => {
   font-weight: 600;
   color: #fff;
   margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.cd-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .cd-name {

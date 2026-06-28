@@ -41,7 +41,8 @@
         @longpress="onLongPress(item)"
       >
         <view class="conv-avatar">
-          <text class="avatar-text">{{ getAvatarText(item) }}</text>
+          <image v-if="getImageUrl(item.peerAvatar || item.avatar)" :src="getImageUrl(item.peerAvatar || item.avatar)" class="conv-avatar-img" mode="aspectFill" />
+          <text v-else class="avatar-text">{{ getAvatarText(item) }}</text>
           <view v-if="item.muted === 1" class="mute-indicator">
             <text class="mute-icon">🔇</text>
           </view>
@@ -74,10 +75,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
+import { getImageUrl } from "../../utils/image-url.js";
 
 const conversations = ref([]);
 const currentTab = ref("all");
@@ -87,6 +89,7 @@ const refreshing = ref(false);
 const pageNum = ref(1);
 const hasMore = ref(true);
 let pollTimer = null;
+let searchTimer = null;
 
 const tabs = [
   { label: "全部", value: "all" },
@@ -157,11 +160,14 @@ async function loadConversations(refresh) {
   if (!hasMore.value && !refresh) return;
   loading.value = true;
   try {
-    const res = await http.get(apiCfg.chat.conversations, {
+    const params = {
       pageNum: pageNum.value,
       pageSize: 20
-    }, { silent: true });
-    const list = res.data?.list || res.data || [];
+    };
+    const kw = keyword.value.trim();
+    if (kw) params.keyword = kw;
+    const res = await http.get(apiCfg.chat.conversations, params, { silent: true });
+    const list = res.data?.records || res.data || [];
     if (refresh || pageNum.value === 1) {
       conversations.value = list;
     } else {
@@ -189,8 +195,18 @@ function loadMore() {
 
 function openConversation(item) {
   const name = encodeURIComponent(getConvName(item));
+  // 将完整会话元数据编码到 URL，避免 conversation.vue 额外调用 conversationDetail API
+  // Web 端 selectConversation(c) 直接使用列表中的 ConversationView，从不调用 conversationDetail
+  const meta = encodeURIComponent(JSON.stringify({
+    peerUserId: item.peerUserId,
+    peerAvatar: item.peerAvatar || "",
+    memberCount: item.memberCount || 0,
+    pinned: item.pinned || 0,
+    muted: item.muted || 0
+  }));
+  const url = "/pages/chat/conversation?id=" + item.id + "&name=" + name + "&convType=" + item.convType + "&meta=" + meta;
   uni.navigateTo({
-    url: "/pages/chat/conversation?id=" + item.id + "&name=" + name + "&convType=" + item.convType,
+    url: url,
     events: {
       onMessagesRead(lastReadId) {
         const conv = conversations.value.find(c => c.id === item.id);
@@ -263,6 +279,14 @@ function stopPolling() {
   }
 }
 
+// 实时搜索：输入变化 300ms 后自动触发
+watch(keyword, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    loadConversations(true);
+  }, 300);
+});
+
 onMounted(() => {
   if (!auth.getToken()) {
     uni.reLaunch({ url: "/pages/auth/login" });
@@ -289,7 +313,10 @@ export default {
 
 <style scoped>
 .chat-container {
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background-color: #f5f7fa;
 }
 
@@ -299,6 +326,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .title {
@@ -324,6 +352,7 @@ export default {
 .search-bar {
   padding: 8px 16px;
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  flex-shrink: 0;
 }
 
 .search-input {
@@ -339,6 +368,7 @@ export default {
   background-color: #fff;
   padding: 12px 16px;
   border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .tab {
@@ -381,7 +411,8 @@ export default {
 }
 
 .conv-list {
-  height: calc(100vh - 180px);
+  flex: 1;
+  min-height: 0;
 }
 
 .empty-state {
@@ -424,6 +455,13 @@ export default {
   margin-right: 12px;
   position: relative;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.conv-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .avatar-text {

@@ -47,23 +47,25 @@ async function doRefreshToken() {
 
 function request(options) {
   const token = auth.getToken();
-  const tenantCode = auth.getTenantCode();
   const header = Object.assign({
     "Content-Type": "application/json"
   }, options.header || {});
   if (token) header["Authorization"] = "Bearer " + token;
-  if (tenantCode) header["X-Tenant-Code"] = tenantCode;
 
-  // 请求字段加密
+  // 请求字段加密（确保 sessionKey 已加载）
   let data = options.data;
+  ensureSessionKey();
   if (crypto.hasSessionKey() && data && typeof data === 'object' && !Array.isArray(data)) {
     data = encryptRequestFields(data);
   }
 
+  const fullUrl = buildUrl(options.url);
+  const method = options.method || "GET";
+
   return new Promise((resolve, reject) => {
     uni.request({
-      url: buildUrl(options.url),
-      method: options.method || "GET",
+      url: fullUrl,
+      method,
       data: data,
       header,
       timeout: options.timeout || 15000,
@@ -79,8 +81,9 @@ function request(options) {
           const body = res.data;
           if (body && typeof body === "object" && "code" in body) {
             if (body.code === 200) {
-              // 响应字段解密
-              if (crypto.hasSessionKey() && body.data && typeof body.data === 'object') {
+              // 响应字段解密（确保 sessionKey 已加载，与 Web 端一致：仅处理对象，跳过数组）
+              ensureSessionKey();
+              if (crypto.hasSessionKey() && body.data && typeof body.data === 'object' && !Array.isArray(body.data)) {
                 body.data = decryptResponseFields(body.data);
               }
               resolve(body);
@@ -101,6 +104,9 @@ function request(options) {
         }
       },
       fail: (err) => {
+        if (config.debug) {
+          console.error(`[request] ${method} ${fullUrl} → FAIL`, JSON.stringify(err));
+        }
         if (!options.silent) {
           uni.showToast({ title: "网络请求失败", icon: "none" });
         }
@@ -150,15 +156,16 @@ function handleUnauthorized(options, resolve, reject) {
 
 // 使用新 Token 重试原始请求
 function retryRequest(options, resolve, reject) {
-  // 重新构建 header
+  // 重新构建 header（与 request() 保持一致）
   const header = Object.assign({
     "Content-Type": "application/json"
   }, options.header || {});
   const token = auth.getToken();
   if (token) header["Authorization"] = "Bearer " + token;
   
-  // 重试时同样需要加密请求字段
+  // 重试时同样需要加密请求字段（确保 sessionKey 已加载）
   let data = options.data;
+  ensureSessionKey();
   if (crypto.hasSessionKey() && data && typeof data === 'object' && !Array.isArray(data)) {
     data = encryptRequestFields(data);
   }
@@ -175,7 +182,9 @@ function retryRequest(options, resolve, reject) {
         const body = res.data;
         if (body && typeof body === "object" && "code" in body) {
           if (body.code === 200) {
-            if (crypto.hasSessionKey() && body.data && typeof body.data === 'object') {
+            // 响应字段解密（确保 sessionKey 已加载，与 Web 端一致：仅处理对象，跳过数组）
+            ensureSessionKey();
+            if (crypto.hasSessionKey() && body.data && typeof body.data === 'object' && !Array.isArray(body.data)) {
               body.data = decryptResponseFields(body.data);
             }
             resolve(body);
@@ -240,12 +249,22 @@ function del(url, opts) {
   return request(Object.assign({ url, method: "DELETE" }, opts || {}));
 }
 
+/**
+ * 确保 sessionKey 已加载到内存（与 Web 端 session.ts restoreSessionKey 一致）
+ * sessionKey 明文存储，直接从 Storage 恢复
+ */
+function ensureSessionKey() {
+  if (crypto.hasSessionKey()) return;
+  auth.getSessionKey();
+}
+
 // ---------- 字段加减密 ----------
 
 function encryptRequestFields(data) {
   const cloned = JSON.parse(JSON.stringify(data));
   return encryptNode(cloned);
 
+  // 与 Web 端 encryptFields 保持一致：只遍历对象，跳过数组
   function encryptNode(node) {
     if (node && typeof node === 'object' && !Array.isArray(node)) {
       const result = {};
@@ -257,7 +276,7 @@ function encryptRequestFields(data) {
           } catch (e) {
             result[key] = val;
           }
-        } else if (val && typeof val === 'object') {
+        } else if (val && typeof val === 'object' && !Array.isArray(val)) {
           result[key] = encryptNode(val);
         } else {
           result[key] = val;
@@ -273,6 +292,7 @@ function decryptResponseFields(data) {
   const cloned = JSON.parse(JSON.stringify(data));
   return decryptNode(cloned);
 
+  // 与 Web 端 decryptFields 保持一致：只遍历对象，跳过数组
   function decryptNode(node) {
     if (node && typeof node === 'object' && !Array.isArray(node)) {
       const result = {};
@@ -284,7 +304,7 @@ function decryptResponseFields(data) {
           } catch (e) {
             result[key] = val;
           }
-        } else if (val && typeof val === 'object') {
+        } else if (val && typeof val === 'object' && !Array.isArray(val)) {
           result[key] = decryptNode(val);
         } else {
           result[key] = val;

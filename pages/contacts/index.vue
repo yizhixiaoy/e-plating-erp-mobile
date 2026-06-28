@@ -41,12 +41,13 @@
           @click="goDetail(u)"
         >
           <view class="ct-avatar">
-            <text>{{ initialOf(u) }}</text>
+            <image v-if="getImageUrl(u.avatarUrl)" :src="getImageUrl(u.avatarUrl)" class="ct-avatar-img" mode="aspectFill" />
+            <text v-else>{{ initialOf(u) }}</text>
           </view>
           <view class="ct-user-main">
             <view class="ct-user-line">
               <text class="ct-user-name">{{ u.realName || u.username }}</text>
-              <text v-if="u.positionName" class="ct-user-position">{{ u.positionName }}</text>
+              <text v-if="u.position" class="ct-user-position">{{ u.position }}</text>
             </view>
             <text class="ct-user-sub">{{ u.deptName || "" }}{{ u.phone ? ' · ' + u.phone : '' }}</text>
           </view>
@@ -61,12 +62,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, watch, onMounted } from "vue";
 import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
+import { getImageUrl } from "../../utils/image-url.js";
 
 const keyword = ref("");
+let searchTimer = null;
 const deptTree = ref([]);
 const currentDeptId = ref("");
 const userList = ref([]);
@@ -117,9 +120,18 @@ function onSearch() {
   loadUsers(true);
 }
 
+// 实时搜索：输入变化 300ms 后自动触发
+watch(keyword, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    loadUsers(true);
+  }, 300);
+});
+
 function onDeptClick(d) {
-  // ID 字符串处理，避免 Long 精度
-  currentDeptId.value = String(d.id || "");
+  // 点击相同部门取消筛选，否则切换
+  const newId = String(d.id || "");
+  currentDeptId.value = currentDeptId.value === newId ? "" : newId;
   loadUsers(true);
 }
 
@@ -146,9 +158,10 @@ onMounted(() => {
 
 <style scoped>
 .ct-container {
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: #f5f7fa;
 }
 
@@ -159,6 +172,7 @@ onMounted(() => {
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .ct-search-input {
@@ -254,6 +268,13 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   margin-right: 10px;
+  overflow: hidden;
+}
+
+.ct-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .ct-user-main {

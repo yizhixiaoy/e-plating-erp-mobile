@@ -71,7 +71,7 @@ async function onSubmit() {
 
 <style scoped>
 .cp-container {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f5f7fa;
   padding: 16px 12px;
 }

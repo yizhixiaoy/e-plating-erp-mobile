@@ -93,7 +93,7 @@ function manualInput() {
 
 <style scoped>
 .sc-container {
-  min-height: 100vh;
+  min-height: 100%;
   background: #0f172a;
   color: #fff;
   display: flex;

@@ -229,26 +229,26 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.todo-container { min-height: 100vh; background-color: #f5f7fa; }
-.header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 40px 20px 20px; display: flex; justify-content: space-between; align-items: center; }
+.todo-container { height: 100%; display: flex; flex-direction: column; overflow: hidden; background-color: #f5f7fa; }
+.header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 40px 20px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .title { font-size: 20px; font-weight: bold; color: #fff; }
 .header-actions { padding: 4px 12px; }
 .action-text { color: #fff; font-size: 14px; opacity: 0.9; }
 
-.stats-row { display: flex; gap: 8px; padding: 12px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+.stats-row { display: flex; gap: 8px; padding: 12px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
 .stat-card { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; background: #f8fafc; border-radius: 8px; }
 .stat-num { font-size: 18px; font-weight: bold; color: #3b82f6; }
 .stat-num.warn { color: #ef4444; }
 .stat-num.done { color: #10b981; }
 .stat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
-.filter-tabs { display: flex; background-color: #fff; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+.filter-tabs { display: flex; background-color: #fff; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
 .tab { flex: 1; text-align: center; padding: 8px 0; font-size: 14px; color: #64748b; position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .tab.active { color: #3b82f6; font-weight: 500; }
 .tab.active::after { content: ""; position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 24px; height: 2px; background-color: #3b82f6; }
 .badge { background-color: #ef4444; color: #fff; font-size: 10px; padding: 0 6px; border-radius: 10px; min-width: 16px; text-align: center; }
 
-.todo-list { padding: 12px; height: calc(100vh - 220px); }
+.todo-list { padding: 12px; flex: 1; min-height: 0; }
 .empty-state { text-align: center; padding: 60px 20px; }
 .empty-text { color: #94a3b8; font-size: 14px; }
 

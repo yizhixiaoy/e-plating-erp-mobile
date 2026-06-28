@@ -34,11 +34,8 @@ function setRefreshToken(token) {
 function getUserInfo() {
   const raw = uni.getStorageSync(STORAGE_KEYS.userInfo);
   if (!raw) return null;
-  // 解密存储的加密数据
-  let decrypted;
   if (typeof raw === "string") {
-    try { decrypted = crypto.decryptStorage(raw); } catch (e) { decrypted = raw; }
-    try { return JSON.parse(decrypted); } catch (e) { return null; }
+    try { return JSON.parse(raw); } catch (e) { return null; }
   }
   return raw;
 }
@@ -46,7 +43,7 @@ function getUserInfo() {
 function setUserInfo(info) {
   if (info) {
     const jsonStr = typeof info === "string" ? info : JSON.stringify(info);
-    uni.setStorageSync(STORAGE_KEYS.userInfo, crypto.encryptStorage(jsonStr));
+    uni.setStorageSync(STORAGE_KEYS.userInfo, jsonStr);
   } else {
     uni.removeStorageSync(STORAGE_KEYS.userInfo);
   }
@@ -75,14 +72,16 @@ function redirectToLogin() {
 }
 
 // 尝试刷新AccessToken（返回新token或null）
+// URL 构建与 request.js buildUrl 保持一致
 async function tryRefreshToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
   
   const { default: config } = await import("../config/api.js");
+  const url = config.apiBase + "/auth/refresh";
   return new Promise((resolve) => {
     uni.request({
-      url: config.getUrl("/auth/refresh"),
+      url,
       method: "POST",
       data: { refreshToken },
       success: (res) => {
@@ -102,26 +101,23 @@ async function tryRefreshToken() {
 }
 
 // ---------- 通信会话密钥 ----------
+// sessionKey 直接明文存储（与 Web 端 localStorage 存储一致的效果）
+// 不再通过 encryptStorage/decryptStorage 包裹，避免 SM4 存储解密链路异常导致 sessionKey 丢失
 
 function saveSessionKey(rawKey) {
   if (rawKey) {
-    uni.setStorageSync(STORAGE_KEYS.sessionKey, crypto.encryptStorage(rawKey));
+    uni.setStorageSync(STORAGE_KEYS.sessionKey, rawKey);
     crypto.setSessionKey(rawKey);
   }
 }
 
 function getSessionKey() {
   const raw = uni.getStorageSync(STORAGE_KEYS.sessionKey);
-  if (raw) {
-    try {
-      const decrypted = crypto.decryptStorage(raw);
-      if (decrypted && !crypto.hasSessionKey()) {
-        crypto.setSessionKey(decrypted);
-      }
-      return decrypted || null;
-    } catch (e) {
-      return null;
+  if (raw && typeof raw === 'string' && raw.length === 32 && /^[0-9a-fA-F]+$/.test(raw)) {
+    if (!crypto.hasSessionKey()) {
+      crypto.setSessionKey(raw);
     }
+    return raw;
   }
   return null;
 }

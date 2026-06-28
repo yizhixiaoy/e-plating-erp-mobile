@@ -44,7 +44,8 @@
 
       <view v-for="item in results" :key="item.id" class="result-item" @click="selectMember(item)">
         <view class="result-avatar">
-          <text class="avatar-char">{{ (item.realName || item.username || 'U').slice(0, 1) }}</text>
+          <image v-if="getImageUrl(item.avatarUrl)" :src="getImageUrl(item.avatarUrl)" class="result-avatar-img" mode="aspectFill" />
+          <text v-else class="avatar-char">{{ (item.realName || item.username || 'U').slice(0, 1) }}</text>
         </view>
         <view class="result-info">
           <text class="result-name">{{ item.realName || item.username }}</text>
@@ -70,6 +71,7 @@ import { ref, computed } from "vue";
 import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
+import { getImageUrl } from "../../utils/image-url.js";
 
 const mode = ref("single");
 const keyword = ref("");
@@ -138,7 +140,15 @@ async function createChat() {
       const res = await http.post(apiCfg.chat.createSingle, { peerUserId });
       const conv = res.data;
       const name = encodeURIComponent(selected.value[0].realName || selected.value[0].username || "聊天");
-      uni.redirectTo({ url: "/pages/chat/conversation?id=" + conv.id + "&name=" + name + "&convType=SINGLE" });
+      // 传递会话元数据，避免 conversation.vue 额外调用 conversationDetail API
+      const meta = encodeURIComponent(JSON.stringify({
+        peerUserId: selected.value[0].id,
+        peerAvatar: selected.value[0].avatarUrl || "",
+        memberCount: conv.memberCount || 2,
+        pinned: 0,
+        muted: 0
+      }));
+      uni.redirectTo({ url: "/pages/chat/conversation?id=" + conv.id + "&name=" + name + "&convType=SINGLE&meta=" + meta });
     } else {
       const res = await http.post(apiCfg.chat.createGroup, {
         name: groupName.value.trim(),
@@ -146,7 +156,13 @@ async function createChat() {
       });
       const conv = res.data;
       const name = encodeURIComponent(groupName.value.trim());
-      uni.redirectTo({ url: "/pages/chat/conversation?id=" + conv.id + "&name=" + name + "&convType=GROUP" });
+      // 传递会话元数据，避免 conversation.vue 额外调用 conversationDetail API
+      const meta = encodeURIComponent(JSON.stringify({
+        memberCount: conv.memberCount || 0,
+        pinned: 0,
+        muted: 0
+      }));
+      uni.redirectTo({ url: "/pages/chat/conversation?id=" + conv.id + "&name=" + name + "&convType=GROUP&meta=" + meta });
     }
   } catch (e) {
     uni.showToast({ title: "创建失败", icon: "none" });
@@ -158,7 +174,7 @@ async function createChat() {
 .new-chat-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background-color: #f5f7fa;
 }
 
@@ -282,6 +298,13 @@ async function createChat() {
   align-items: center;
   justify-content: center;
   margin-right: 12px;
+  overflow: hidden;
+}
+
+.result-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .avatar-char {

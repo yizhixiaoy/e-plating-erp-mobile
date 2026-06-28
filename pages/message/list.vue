@@ -11,28 +11,41 @@
     <!-- 筛选标签 -->
     <view class="filter-tabs">
       <view 
-        v-for="tab in tabs" 
-        :key="tab.value"
-        :class="['tab', currentTab === tab.value ? 'active' : '']"
-        @click="currentTab = tab.value"
+        :class="['tab', currentTab === '' ? 'active' : '']"
+        @click="switchTab('')"
       >
-        <text>{{ tab.label }}</text>
-        <text v-if="tab.count > 0" class="badge">{{ tab.count }}</text>
+        <text>全部</text>
+        <text v-if="totalCount > 0" class="badge">{{ totalCount }}</text>
+      </view>
+      <view 
+        :class="['tab', currentTab === 'unread' ? 'active' : '']"
+        @click="switchTab('unread')"
+      >
+        <text>未读</text>
+        <text v-if="unreadCount > 0" class="badge">{{ unreadCount }}</text>
+      </view>
+      <view 
+        v-for="item in noticeTypeItems" 
+        :key="item.value"
+        :class="['tab', currentTab === item.value ? 'active' : '']"
+        @click="switchTab(item.value)"
+      >
+        <text>{{ item.label }}</text>
       </view>
     </view>
 
     <!-- 消息列表 -->
     <scroll-view scroll-y class="message-list" @scrolltolower="loadMore">
-      <view v-if="filteredList.length === 0" class="empty-state">
+      <view v-if="rows.length === 0" class="empty-state">
         <text class="empty-icon">📭</text>
         <text class="empty-text">暂无消息</text>
       </view>
 
       <view 
-        v-for="item in filteredList" 
+        v-for="item in rows" 
         :key="item.noticeId"
         :class="['message-item', item.readStatus === 0 ? 'unread' : '']"
-        @click="openDetail(item.noticeId)"
+        @click="openDetail(item)"
       >
         <view class="message-header">
           <view class="message-type">
@@ -47,7 +60,7 @@
 
         <view class="message-content">
           <text class="message-title">{{ item.title }}</text>
-          <text class="message-summary">{{ item.summary }}</text>
+          <text class="message-summary">{{ item.content }}</text>
         </view>
 
         <view class="message-footer">
@@ -65,36 +78,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import * as http from "../../utils/request.js";
 import * as dict from "../../utils/dict.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
 
 const rows = ref([]);
-const currentTab = ref("all");
+const currentTab = ref("");
 const loading = ref(false);
 const noticeTypeItems = ref([]);
-
-const tabs = ref([
-  { label: "全部", value: "all", count: 0 },
-  { label: "未读", value: "unread", count: 0 },
-  { label: "系统更新", value: "SYS_UPDATE", count: 0 },
-  { label: "内部通知", value: "INTERNAL_NOTICE", count: 0 }
-]);
-
-const filteredList = computed(() => {
-  if (currentTab.value === "all") return rows.value;
-  if (currentTab.value === "unread") return rows.value.filter((i) => i.readStatus === 0);
-  return rows.value.filter((i) => i.noticeType === currentTab.value);
-});
+const totalCount = ref(0);
+const unreadCount = ref(0);
 
 function getTypeClass(type) {
   return type === "SYS_UPDATE" ? "type-system" : "type-notice";
 }
 
 function getTypeLabel(type) {
-  return dict.getDictLabel(noticeTypeItems.value, type) || (type === "SYS_UPDATE" ? "系统更新" : "内部通知");
+  return dict.getDictLabel(noticeTypeItems.value, type) || type;
 }
 
 function formatTime(time) {
@@ -110,24 +112,33 @@ function formatTime(time) {
 async function load() {
   loading.value = true;
   try {
-    const res = await http.get(apiCfg.message.list, null, { silent: true });
-    rows.value = res.data || [];
-    updateTabCounts();
+    const params = { pageNum: 1, pageSize: 50 };
+    if (currentTab.value === "unread") {
+      params.readStatus = 0;
+    } else if (currentTab.value) {
+      params.noticeType = currentTab.value;
+    }
+    const res = await http.get(apiCfg.message.list, params, { silent: true });
+    const data = res.data || {};
+    rows.value = data.records || data || [];
+    // 更新角标（仅全部和未读）
+    if (!currentTab.value) {
+      totalCount.value = data.total || rows.value.length;
+      unreadCount.value = rows.value.filter((i) => i.readStatus === 0).length;
+    }
   } catch (e) { rows.value = []; }
   finally { loading.value = false; }
 }
 
-function updateTabCounts() {
-  tabs.value[0].count = rows.value.length;
-  tabs.value[1].count = rows.value.filter((i) => i.readStatus === 0).length;
-  tabs.value[2].count = rows.value.filter((i) => i.noticeType === "SYS_UPDATE").length;
-  tabs.value[3].count = rows.value.filter((i) => i.noticeType === "INTERNAL_NOTICE").length;
+function switchTab(tab) {
+  if (currentTab.value === tab) return;
+  currentTab.value = tab;
+  load();
 }
 
 async function markRead(noticeId) {
-  // noticeId 是 Long，保持字符串
   const url = apiCfg.fillPath(apiCfg.message.read, { noticeId: String(noticeId) });
-  await http.patch(url, null, { silent: true });
+  await http.put(url, null, { silent: true });
   await load();
 }
 
@@ -152,8 +163,9 @@ async function markAllRead() {
   });
 }
 
-function openDetail(noticeId) {
-  uni.navigateTo({ url: "/pages/message/detail?id=" + String(noticeId) });
+function openDetail(item) {
+  // 已读消息不需要再次标记已读，直接跳转
+  uni.navigateTo({ url: "/pages/message/detail?id=" + String(item.noticeId) + "&readStatus=" + (item.readStatus || 0) });
 }
 
 function loadMore() {
@@ -165,14 +177,17 @@ onMounted(() => {
     uni.reLaunch({ url: "/pages/auth/login" });
     return;
   }
-  dict.fetchDictData("sys_notice_type").then((items) => { noticeTypeItems.value = items; });
+  dict.fetchDictData("notice_type").then((items) => { noticeTypeItems.value = items; });
   load();
 });
 </script>
 
 <style scoped>
 .message-container {
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background-color: #f5f7fa;
 }
 
@@ -182,6 +197,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .title {
@@ -205,6 +221,7 @@ onMounted(() => {
   background-color: #fff;
   padding: 12px 16px;
   border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .tab {
@@ -248,7 +265,8 @@ onMounted(() => {
 
 .message-list {
   padding: 12px;
-  height: calc(100vh - 160px);
+  flex: 1;
+  min-height: 0;
 }
 
 .empty-state {

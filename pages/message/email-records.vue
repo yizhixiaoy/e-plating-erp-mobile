@@ -27,8 +27,8 @@
       <view v-for="item in list" :key="item.id" class="record-item">
         <view class="record-header">
           <text class="record-email">{{ item.receiverEmail }}</text>
-          <text :class="['status-tag', item.sendStatus === 1 ? 'status-success' : 'status-fail']">
-            {{ item.sendStatus === 1 ? '已发送' : '发送失败' }}
+          <text :class="['status-tag', item.sendStatus === 1 ? 'status-success' : item.sendStatus === 2 ? 'status-fail' : 'status-pending']">
+            {{ getStatusLabel(item.sendStatus) }}
           </text>
         </view>
         <text class="record-subject">{{ item.subject }}</text>
@@ -50,12 +50,14 @@ import { ref, onMounted } from "vue";
 import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
+import { fetchDictData, getDictLabel } from "../../utils/dict.js";
 
 const list = ref([]);
 const currentTab = ref("all");
 const loading = ref(false);
 const pageNum = ref(1);
 const hasMore = ref(true);
+const sendStatusDict = ref([]);
 
 const tabs = [
   { label: "全部", value: "all" },
@@ -63,9 +65,13 @@ const tabs = [
   { label: "发送失败", value: "fail" }
 ];
 
+function getStatusLabel(status) {
+  return getDictLabel(sendStatusDict.value, status);
+}
+
 function getSendStatus() {
   if (currentTab.value === "success") return 1;
-  if (currentTab.value === "fail") return 0;
+  // "fail" tab: fetch all and filter client-side (failed = 0 or 2)
   return null;
 }
 
@@ -86,7 +92,11 @@ async function loadRecords() {
     if (status !== null) params.sendStatus = status;
     const res = await http.get(apiCfg.me.emailRecords, params, { silent: true });
     const data = res.data || {};
-    const records = data.records || [];
+    let records = data.records || [];
+    // "fail" tab: client-side filter for non-success (status 0 or 2)
+    if (currentTab.value === "fail") {
+      records = records.filter(r => r.sendStatus !== 1);
+    }
     if (pageNum.value === 1) {
       list.value = records;
     } else {
@@ -114,18 +124,19 @@ function formatTime(time) {
     String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!auth.getToken()) {
     uni.reLaunch({ url: "/pages/auth/login" });
     return;
   }
+  sendStatusDict.value = await fetchDictData("send_status");
   loadRecords();
 });
 </script>
 
 <style scoped>
 .record-container {
-  min-height: 100vh;
+  min-height: 100%;
   background-color: #f5f7fa;
 }
 
@@ -174,7 +185,7 @@ onMounted(() => {
 
 .record-list {
   padding: 12px;
-  height: calc(100vh - 140px);
+  height: calc(100% - 140px);
 }
 
 .empty-state {
@@ -234,6 +245,11 @@ onMounted(() => {
 .status-fail {
   background-color: #fee2e2;
   color: #ef4444;
+}
+
+.status-pending {
+  background-color: #fef3c7;
+  color: #d97706;
 }
 
 .record-subject {

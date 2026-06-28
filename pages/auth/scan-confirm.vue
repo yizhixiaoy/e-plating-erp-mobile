@@ -153,7 +153,7 @@ async function handleCancel() {
 <style scoped>
 .scan-confirm-container {
   padding: 16px;
-  min-height: 100vh;
+  min-height: 100%;
   background-color: #f5f7fa;
   display: flex;
   flex-direction: column;
