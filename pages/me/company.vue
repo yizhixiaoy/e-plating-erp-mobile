@@ -55,11 +55,11 @@ onMounted(() => { load(); });
 <style scoped>
 .company-container {
   min-height: 100%;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
 }
 
 .company-header {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--color-gradient);
   padding: 40px 20px 40px;
   display: flex;
   flex-direction: column;
@@ -67,14 +67,15 @@ onMounted(() => { load(); });
 }
 
 .company-logo {
-  width: 72px;
-  height: 72px;
-  border-radius: 16px;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .logo-text {
@@ -87,13 +88,15 @@ onMounted(() => { load(); });
   font-size: 18px;
   font-weight: 600;
   color: #fff;
+  letter-spacing: 0.3px;
 }
 
 .info-card {
-  margin: 16px 12px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin: -16px 12px 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
 }
 
 .info-row {
@@ -101,7 +104,7 @@ onMounted(() => { load(); });
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .info-row:last-child {
@@ -110,11 +113,12 @@ onMounted(() => { load(); });
 
 .info-label {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .info-value {
   font-size: 14px;
-  color: #1e293b;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 </style>

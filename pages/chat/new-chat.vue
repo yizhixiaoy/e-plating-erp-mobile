@@ -175,14 +175,14 @@ async function createChat() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
 }
 
 .mode-tabs {
   display: flex;
-  background: #fff;
+  background: var(--bg-card);
   padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .mode-tab {
@@ -190,32 +190,36 @@ async function createChat() {
   text-align: center;
   padding: 8px 0;
   font-size: 14px;
-  color: #64748b;
-  border-radius: 8px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  transition: all var(--transition-fast);
 }
 
 .mode-tab.active {
-  background: #3b82f6;
+  background: var(--color-primary);
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 
 .search-bar {
   padding: 12px 16px;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .search-input {
-  background: #f1f5f9;
-  border-radius: 20px;
+  background: var(--bg-input);
+  border-radius: var(--radius-full);
   padding: 10px 16px;
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .selected-bar {
-  background: #fff;
+  background: var(--bg-card);
   padding: 0 16px 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .selected-scroll {
@@ -231,33 +235,37 @@ async function createChat() {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #dbeafe;
-  padding: 4px 10px;
-  border-radius: 16px;
+  background: #eff6ff;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid #bfdbfe;
 }
 
 .chip-name {
   font-size: 13px;
-  color: #3b82f6;
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 .chip-remove {
-  font-size: 12px;
-  color: #3b82f6;
+  font-size: 14px;
+  color: var(--color-primary);
   padding: 0 2px;
+  cursor: pointer;
 }
 
 .group-name-row {
   padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .group-name-input {
-  background: #f1f5f9;
-  border-radius: 8px;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
   padding: 10px 16px;
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .result-list {
@@ -270,35 +278,42 @@ async function createChat() {
 }
 
 .empty-text {
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
 .loading-more {
   text-align: center;
   padding: 16px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
 .result-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  transition: background var(--transition-fast);
+}
+
+.result-item:active {
+  background: var(--bg-hover);
 }
 
 .result-avatar {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--color-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 12px;
   overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .result-avatar-img {
@@ -315,17 +330,19 @@ async function createChat() {
 
 .result-info {
   flex: 1;
+  min-width: 0;
 }
 
 .result-name {
   font-size: 15px;
-  color: #1e293b;
+  color: var(--text-primary);
+  font-weight: 500;
   display: block;
 }
 
 .result-dept {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   display: block;
   margin-top: 2px;
 }
@@ -334,10 +351,11 @@ async function createChat() {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .check-mark text {
@@ -348,24 +366,30 @@ async function createChat() {
 .bottom-bar {
   padding: 12px 16px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-default);
 }
 
 .create-btn {
-  padding: 12px;
-  border-radius: 24px;
-  background: #e2e8f0;
+  padding: 13px;
+  border-radius: var(--radius-lg);
+  background: var(--border-strong);
   text-align: center;
+  transition: all var(--transition-fast);
 }
 
 .create-active {
-  background: #3b82f6;
+  background: var(--color-gradient);
+  box-shadow: var(--shadow-md);
+}
+
+.create-btn:active {
+  transform: scale(0.98);
 }
 
 .create-btn text {
   font-size: 15px;
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
 }
 </style>

@@ -122,13 +122,13 @@ onMounted(() => {
 <style scoped>
 .cd-container {
   min-height: 100%;
-  background: #f5f7fa;
+  background: var(--bg-page);
   padding-bottom: 24px;
 }
 
 .cd-card {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  padding: 32px 16px;
+  background: var(--color-gradient);
+  padding: 40px 16px 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -136,18 +136,19 @@ onMounted(() => {
 }
 
 .cd-avatar {
-  width: 72px;
-  height: 72px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
   color: #fff;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
 }
 
 .cd-avatar-img {
@@ -157,55 +158,66 @@ onMounted(() => {
 }
 
 .cd-name {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: #fff;
+  letter-spacing: 0.3px;
 }
 
 .cd-position {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  color: var(--text-white-secondary);
   margin-top: 4px;
 }
 
 .cd-section {
-  background: #fff;
+  background: var(--bg-card);
   margin: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .cd-row {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--border-light);
   gap: 16px;
 }
+
 .cd-row:last-child {
   border-bottom: none;
 }
 
+.cd-row:active {
+  background-color: var(--bg-hover);
+  transition: background-color var(--transition-fast);
+}
+
 .cd-label {
   width: 70px;
-  color: #64748b;
-  font-size: 13px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 .cd-value {
   flex: 1;
-  color: #1e293b;
+  color: var(--text-primary);
   font-size: 14px;
+  font-weight: 500;
 }
 
 .cd-link {
-  color: #3b82f6;
+  color: var(--color-primary);
 }
 
 .cd-tag {
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
 }
 
 .tag-on {
@@ -227,19 +239,26 @@ onMounted(() => {
 .cd-btn {
   flex: 1;
   text-align: center;
-  padding: 12px 0;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 13px 0;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform var(--transition-fast);
+}
+
+.cd-btn:active {
+  transform: scale(0.97);
 }
 
 .cd-btn.primary {
-  background: #3b82f6;
+  background: var(--color-gradient);
   color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 
 .cd-btn.ghost {
-  background: #fff;
-  color: #3b82f6;
-  border: 1px solid #3b82f6;
+  background: var(--bg-card);
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
 }
 </style>

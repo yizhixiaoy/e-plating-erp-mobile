@@ -58,22 +58,23 @@ const businessRoadmap = ref([
 <style scoped>
 .ab-container {
   min-height: 100%;
-  background: #f5f7fa;
-  padding: 32px 12px 24px;
+  background: var(--bg-page);
+  padding: 40px 16px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .ab-logo {
-  width: 72px;
-  height: 72px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  width: 76px;
+  height: 76px;
+  border-radius: var(--radius-lg);
+  background: var(--color-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-md);
 }
 
 .ab-logo-text {
@@ -83,38 +84,40 @@ const businessRoadmap = ref([
 }
 
 .ab-title {
-  font-size: 16px;
-  color: #1e293b;
-  font-weight: 600;
+  font-size: 18px;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .ab-version {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   margin-top: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .ab-section {
   width: 100%;
-  background: #fff;
-  border-radius: 12px;
-  padding: 12px 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
 }
 
 .ab-section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 8px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
   display: block;
 }
 
 .ab-row {
   display: flex;
   align-items: center;
-  padding: 8px 0;
+  padding: 9px 0;
   gap: 8px;
 }
 
@@ -123,34 +126,35 @@ const businessRoadmap = ref([
   line-height: 1;
 }
 
-.ab-dot.on { color: #10b981; }
-.ab-dot.off { color: #cbd5e1; }
+.ab-dot.on { color: var(--color-success); }
+.ab-dot.off { color: var(--border-strong); }
 
 .ab-feature {
   flex: 1;
-  font-size: 13px;
-  color: #475569;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
 .ab-tag {
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
 }
 
 .tag-on {
   background: #d1fae5;
-  color: #10b981;
+  color: var(--color-success);
 }
 
 .tag-soon {
   background: #fef3c7;
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .ab-copyright {
   font-size: 11px;
-  color: #cbd5e1;
-  margin-top: 16px;
+  color: var(--text-tertiary);
+  margin-top: 24px;
 }
 </style>

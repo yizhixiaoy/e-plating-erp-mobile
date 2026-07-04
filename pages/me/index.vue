@@ -21,15 +21,19 @@
     <!-- 一级入口 -->
     <scroll-view scroll-y class="me-scroll">
     <view class="me-section">
+      <view class="me-section-label">常用功能</view>
       <view class="me-row" @click="goScan">
+        <text class="me-row-icon">📷</text>
         <text class="me-row-label">扫一扫</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goTodo">
+        <text class="me-row-icon">📋</text>
         <text class="me-row-label">我的待办</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goChangePassword">
+        <text class="me-row-icon">🔑</text>
         <text class="me-row-label">修改密码</text>
         <text class="me-row-arrow">›</text>
       </view>
@@ -37,15 +41,19 @@
 
     <!-- AI 功能 -->
     <view class="me-section">
+      <view class="me-section-label">AI 助手</view>
       <view class="me-row" @click="goAiChat">
+        <text class="me-row-icon">🤖</text>
         <text class="me-row-label">AI 对话</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goAiWriter">
+        <text class="me-row-icon">✍️</text>
         <text class="me-row-label">AI 写作</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goAiKnowledge">
+        <text class="me-row-icon">📚</text>
         <text class="me-row-label">知识库</text>
         <text class="me-row-arrow">›</text>
       </view>
@@ -53,23 +61,29 @@
 
     <!-- 二级入口 -->
     <view class="me-section">
+      <view class="me-section-label">其他</view>
       <view class="me-row" @click="goCompany">
+        <text class="me-row-icon">🏢</text>
         <text class="me-row-label">公司信息</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goEmailRecords">
+        <text class="me-row-icon">📧</text>
         <text class="me-row-label">邮件记录</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goSmsRecords">
+        <text class="me-row-icon">📱</text>
         <text class="me-row-label">短信记录</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goSettings">
+        <text class="me-row-icon">⚙️</text>
         <text class="me-row-label">设置</text>
         <text class="me-row-arrow">›</text>
       </view>
       <view class="me-row" @click="goAbout">
+        <text class="me-row-icon">ℹ️</text>
         <text class="me-row-label">关于</text>
         <text class="me-row-arrow">›</text>
       </view>
@@ -171,7 +185,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f5f7fa;
+  background: var(--bg-page);
 }
 
 .me-scroll {
@@ -180,9 +194,10 @@ onMounted(() => {
   padding-bottom: 24px;
 }
 
+/* ===== 用户信息卡 ===== */
 .me-card {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  padding: 32px 16px;
+  background: var(--color-gradient);
+  padding: 32px 16px 28px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -191,25 +206,26 @@ onMounted(() => {
 }
 
 .me-avatar {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .me-avatar-img {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
 }
 
 .me-avatar-text {
   color: #fff;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 600;
 }
 
@@ -221,18 +237,19 @@ onMounted(() => {
 }
 
 .me-name {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
   color: #fff;
+  letter-spacing: 0.3px;
 }
 
 .me-meta {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  color: var(--text-white-secondary);
 }
 
 .me-tenant {
-  font-size: 11px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
 }
 
@@ -249,32 +266,57 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+/* ===== 功能分组 ===== */
 .me-section {
   margin: 12px;
-  background: #fff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Section 标题 */
+.me-section-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 12px 16px 6px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
 .me-row {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.me-row:active {
+  background-color: var(--bg-hover);
+  transition: background-color var(--transition-fast);
 }
 
 .me-row:last-child {
   border-bottom: none;
 }
 
+.me-row-icon {
+  font-size: 18px;
+  margin-right: 12px;
+  width: 24px;
+  text-align: center;
+}
+
 .me-row-label {
   flex: 1;
-  font-size: 14px;
-  color: #1e293b;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .me-row-arrow {
-  color: #cbd5e1;
+  color: var(--border-strong);
   font-size: 18px;
 }
 
@@ -282,9 +324,17 @@ onMounted(() => {
   margin: 16px 12px 0;
   text-align: center;
   padding: 14px 0;
-  background: #fff;
-  color: #ef4444;
-  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--color-danger);
+  border-radius: var(--radius-lg);
   font-size: 15px;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.me-logout:active {
+  background-color: #fee2e2;
+  transition: background-color var(--transition-fast);
 }
 </style>

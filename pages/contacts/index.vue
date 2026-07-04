@@ -162,113 +162,160 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f5f7fa;
+  background: var(--bg-page);
 }
 
+/* ===== 搜索栏 —— 独立白色卡片 ===== */
 .ct-search {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
   gap: 8px;
   flex-shrink: 0;
 }
 
 .ct-search-input {
   flex: 1;
-  padding: 8px 12px;
-  background: #f1f5f9;
-  border-radius: 6px;
+  padding: 9px 14px;
+  background: var(--bg-input);
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  height: 36px;
+  line-height: 36px;
+  color: var(--text-primary);
+}
+
+.ct-search-input::placeholder {
+  color: var(--text-tertiary);
   font-size: 13px;
-  height: 32px;
-  line-height: 32px;
 }
 
 .ct-search-btn {
-  font-size: 13px;
-  color: #3b82f6;
+  font-size: 14px;
+  color: var(--color-primary);
   padding: 0 8px;
+  font-weight: 500;
 }
 
+.ct-search-btn:active {
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+}
+
+/* ===== 主体区域 ===== */
 .ct-body {
   flex: 1;
   display: flex;
   overflow: hidden;
 }
 
+/* ===== 左侧部门树 ===== */
 .ct-tree {
-  width: 96px;
-  background: #fff;
-  border-right: 1px solid #e2e8f0;
+  width: 100px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 
 .ct-tree-item {
   padding: 12px 10px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: relative;
+  cursor: pointer;
+}
+
+.ct-tree-item:active {
+  background: var(--bg-hover);
+  transition: background var(--transition-fast);
 }
 
 .ct-tree-item.active {
   background: #eff6ff;
 }
 
+.ct-tree-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-primary);
+  border-radius: 0 2px 2px 0;
+}
+
 .ct-tree-text {
   font-size: 13px;
-  color: #1e293b;
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ct-tree-item.active .ct-tree-text {
-  color: #3b82f6;
-  font-weight: 500;
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .ct-tree-count {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 .ct-empty-tree {
   padding: 24px 0;
   text-align: center;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 
+/* ===== 右侧员工列表 ===== */
 .ct-list {
   flex: 1;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .ct-empty {
   padding: 48px 0;
   text-align: center;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
 .ct-user {
   display: flex;
   align-items: center;
-  padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px 14px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.ct-user:active {
+  background: var(--bg-hover);
+  transition: background var(--transition-fast);
 }
 
 .ct-avatar {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  background: var(--color-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-size: 16px;
   font-weight: 600;
-  margin-right: 10px;
+  margin-right: 12px;
   overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .ct-avatar-img {
@@ -282,6 +329,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .ct-user-line {
@@ -291,28 +339,33 @@ onMounted(() => {
 }
 
 .ct-user-name {
-  font-size: 14px;
-  color: #1e293b;
-  font-weight: 500;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .ct-user-position {
-  font-size: 11px;
-  color: #6366f1;
-  background: #eef2ff;
-  padding: 1px 6px;
-  border-radius: 4px;
+  font-size: 10px;
+  color: var(--color-primary);
+  background: #eff6ff;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .ct-user-sub {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ct-loading {
   text-align: center;
   padding: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 </style>

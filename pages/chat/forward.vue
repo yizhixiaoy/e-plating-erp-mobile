@@ -132,20 +132,21 @@ async function doForward() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
 }
 
 .search-bar {
   padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .search-input {
-  background: #f1f5f9;
-  border-radius: 20px;
+  background: var(--bg-input);
+  border-radius: var(--radius-full);
   padding: 10px 16px;
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .conv-list {
@@ -155,7 +156,7 @@ async function doForward() {
 .loading-more {
   text-align: center;
   padding: 16px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -165,28 +166,35 @@ async function doForward() {
 }
 
 .empty-text {
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
 .conv-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  transition: background var(--transition-fast);
+}
+
+.conv-item:active {
+  background: var(--bg-hover);
 }
 
 .conv-avatar {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--color-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 12px;
   overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .conv-avatar-img {
@@ -203,17 +211,19 @@ async function doForward() {
 
 .conv-info {
   flex: 1;
+  min-width: 0;
 }
 
 .conv-name {
   font-size: 15px;
-  color: #1e293b;
+  color: var(--text-primary);
+  font-weight: 500;
   display: block;
 }
 
 .conv-type {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   display: block;
   margin-top: 2px;
 }
@@ -222,15 +232,17 @@ async function doForward() {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid #d1d5db;
+  border: 2px solid var(--border-strong);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
 }
 
 .check-box.checked {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .check-box text {
@@ -241,24 +253,30 @@ async function doForward() {
 .bottom-bar {
   padding: 12px 16px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-default);
 }
 
 .send-btn {
-  padding: 12px;
-  border-radius: 24px;
-  background: #e2e8f0;
+  padding: 13px;
+  border-radius: var(--radius-lg);
+  background: var(--border-strong);
   text-align: center;
+  transition: all var(--transition-fast);
 }
 
 .send-active {
-  background: #3b82f6;
+  background: var(--color-gradient);
+  box-shadow: var(--shadow-md);
+}
+
+.send-btn:active {
+  transform: scale(0.98);
 }
 
 .send-btn text {
   font-size: 15px;
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
 }
 </style>

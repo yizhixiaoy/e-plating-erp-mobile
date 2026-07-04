@@ -137,55 +137,49 @@ onMounted(async () => {
 <style scoped>
 .record-container {
   min-height: 100%;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
 }
 
 .header {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--color-gradient);
   padding: 40px 20px 20px;
 }
 
 .title {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 700;
   color: #fff;
+  letter-spacing: 0.5px;
 }
 
 .filter-tabs {
   display: flex;
-  background-color: #fff;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  background-color: var(--bg-card);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  gap: 6px;
 }
 
 .tab {
-  flex: 1;
+  flex-shrink: 0;
   text-align: center;
-  padding: 8px 0;
-  font-size: 14px;
-  color: #64748b;
-  position: relative;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
 }
 
 .tab.active {
-  color: #3b82f6;
-  font-weight: 500;
-}
-
-.tab.active::after {
-  content: "";
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background-color: #3b82f6;
+  color: var(--color-primary);
+  font-weight: 600;
+  background: #eff6ff;
+  border-color: #bfdbfe;
 }
 
 .record-list {
   padding: 12px;
-  height: calc(100% - 140px);
 }
 
 .empty-state {
@@ -194,22 +188,28 @@ onMounted(async () => {
 }
 
 .empty-icon {
-  font-size: 48px;
+  font-size: 64px;
   margin-bottom: 12px;
   display: block;
+  animation: fadeIn 0.3s ease;
 }
 
 .empty-text {
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
 .record-item {
-  background-color: #fff;
-  border-radius: 8px;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
   padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.record-item:active {
+  transform: scale(0.98);
 }
 
 .record-header {
@@ -221,8 +221,8 @@ onMounted(async () => {
 
 .record-email {
   font-size: 14px;
-  color: #1e293b;
-  font-weight: 500;
+  color: var(--text-primary);
+  font-weight: 600;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -231,15 +231,16 @@ onMounted(async () => {
 
 .status-tag {
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   margin-left: 8px;
   flex-shrink: 0;
+  font-weight: 500;
 }
 
 .status-success {
-  background-color: #dcfce7;
-  color: #16a34a;
+  background-color: #d1fae5;
+  color: #10b981;
 }
 
 .status-fail {
@@ -254,7 +255,7 @@ onMounted(async () => {
 
 .record-subject {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary);
   display: block;
   margin-bottom: 8px;
   overflow: hidden;
@@ -270,12 +271,12 @@ onMounted(async () => {
 
 .record-time {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 .fail-reason {
   font-size: 11px;
-  color: #ef4444;
+  color: var(--color-danger);
   max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -285,7 +286,7 @@ onMounted(async () => {
 .loading-more {
   text-align: center;
   padding: 16px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 </style>

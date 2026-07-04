@@ -154,7 +154,7 @@ async function handleCancel() {
 .scan-confirm-container {
   padding: 16px;
   min-height: 100%;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -166,26 +166,30 @@ async function handleCancel() {
 }
 
 .logo-text {
-  font-size: 24px;
-  font-weight: bold;
-  color: #3b82f6;
+  font-size: 28px;
+  font-weight: 800;
+  background: var(--color-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   display: block;
 }
 
 .slogan {
-  font-size: 12px;
-  color: #64748b;
+  font-size: 13px;
+  color: var(--text-secondary);
   margin-top: 6px;
   display: block;
+  letter-spacing: 0.5px;
 }
 
 .confirm-card {
-  background-color: #fff;
-  border-radius: 12px;
-  padding: 24px;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -199,7 +203,7 @@ async function handleCancel() {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .icon {
@@ -207,9 +211,9 @@ async function handleCancel() {
 }
 
 .confirm-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #1e293b;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
   margin-bottom: 24px;
 }
 
@@ -226,15 +230,16 @@ async function handleCancel() {
 
 .info-label {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
   min-width: 80px;
 }
 
 .info-value {
   font-size: 14px;
-  color: #1e293b;
+  color: var(--text-primary);
   flex: 1;
   word-break: break-all;
+  font-weight: 500;
 }
 
 .action-buttons {
@@ -245,30 +250,41 @@ async function handleCancel() {
 
 .cancel-btn {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background-color: #fff;
-  color: #64748b;
+  padding: 13px;
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.cancel-btn:active {
+  background-color: var(--bg-input);
 }
 
 .confirm-btn {
   flex: 1;
-  padding: 12px;
+  padding: 13px;
   border: none;
-  border-radius: 8px;
-  background-color: #3b82f6;
+  border-radius: var(--radius-md);
+  background: var(--color-gradient);
   color: #fff;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.confirm-btn:active {
+  transform: scale(0.98);
 }
 
 .tip {
   margin-top: 24px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   text-align: center;
   line-height: 1.5;
 }

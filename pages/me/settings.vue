@@ -149,22 +149,29 @@ onMounted(() => {
 <style scoped>
 .st-container {
   min-height: 100%;
-  background: #f5f7fa;
+  background: var(--bg-page);
 }
 
 .st-section {
-  background: #fff;
+  background: var(--bg-card);
   margin: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .st-row {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--border-light);
   gap: 12px;
+  cursor: pointer;
+}
+
+.st-row:active {
+  background-color: var(--bg-hover);
+  transition: background-color var(--transition-fast);
 }
 
 .st-row:last-child {
@@ -173,13 +180,14 @@ onMounted(() => {
 
 .st-label {
   flex: 1;
-  font-size: 14px;
-  color: #1e293b;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .st-value {
-  font-size: 13px;
-  color: #94a3b8;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
 .st-radio-group {
@@ -188,15 +196,23 @@ onMounted(() => {
 }
 
 .st-radio {
-  padding: 4px 10px;
-  border-radius: 4px;
-  background: #f1f5f9;
-  font-size: 12px;
-  color: #475569;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.st-radio:active {
+  opacity: 0.7;
 }
 
 .st-radio.active {
-  background: #3b82f6;
+  background: var(--color-primary);
   color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 </style>

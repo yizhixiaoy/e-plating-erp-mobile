@@ -132,16 +132,16 @@ const computedMessage = computed(() => {
 <style scoped>
 .message-detail-container {
   min-height: 100%;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 12px 16px;
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -160,13 +160,13 @@ const computedMessage = computed(() => {
 
 .back-icon {
   font-size: 20px;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .header-title {
   font-size: 16px;
-  font-weight: 500;
-  color: #1e293b;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .header-right {
@@ -179,23 +179,24 @@ const computedMessage = computed(() => {
   align-items: center;
   height: 300px;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .message-content {
-  padding: 16px;
-  background-color: #fff;
-  margin: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px 16px;
+  background-color: var(--bg-card);
+  margin: 12px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .message-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #1e293b;
-  margin-bottom: 12px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
   display: block;
+  line-height: 1.4;
 }
 
 .message-meta {
@@ -204,26 +205,27 @@ const computedMessage = computed(() => {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .message-time {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 .message-type {
   font-size: 12px;
-  color: #3b82f6;
+  color: var(--color-primary);
   background-color: #eff6ff;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
 }
 
 .message-body {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #334155;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-primary);
 }
 
 .message-body :deep(p) {
@@ -234,7 +236,8 @@ const computedMessage = computed(() => {
 .message-body :deep(h2),
 .message-body :deep(h3) {
   margin: 16px 0 8px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .error-container {
@@ -244,16 +247,17 @@ const computedMessage = computed(() => {
   align-items: center;
   height: 300px;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .retry-btn {
   margin-top: 16px;
-  padding: 8px 16px;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  background-color: #fff;
-  color: #3b82f6;
+  padding: 8px 20px;
+  border: 1.5px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  color: var(--color-primary);
   font-size: 14px;
+  font-weight: 500;
 }
 </style>

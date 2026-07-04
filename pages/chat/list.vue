@@ -138,8 +138,9 @@ function getLastMessagePreview(item) {
 }
 
 function formatTime(time) {
-  if (!time) return "";
+  if (!time) return "—";
   const d = new Date(time);
+  if (isNaN(d.getTime())) return "—";
   const now = new Date();
   const diff = now - d;
   if (diff < 60000) return "刚刚";
@@ -317,11 +318,12 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
 }
 
+/* ===== 顶部导航 ===== */
 .header {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--color-gradient);
   padding: 40px 20px 16px;
   display: flex;
   justify-content: space-between;
@@ -330,54 +332,77 @@ export default {
 }
 
 .title {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 700;
   color: #fff;
+  letter-spacing: 0.5px;
 }
 
 .header-actions {
   display: flex;
-  gap: 16px;
+  gap: 12px;
 }
 
 .action-icon {
-  font-size: 24px;
+  font-size: 26px;
   color: #fff;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   text-align: center;
-  line-height: 32px;
+  line-height: 36px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
 }
 
+.action-icon:active {
+  background: rgba(255,255,255,0.25);
+  transition: background var(--transition-fast);
+}
+
+/* ===== 搜索栏 —— 独立白色卡片 ===== */
 .search-bar {
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  padding: 12px 16px 8px;
+  background: var(--bg-page);
   flex-shrink: 0;
 }
 
 .search-input {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
-  padding: 8px 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-full);
+  padding: 10px 16px;
   font-size: 14px;
-  color: #fff;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
 }
 
+.search-input::placeholder {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+/* ===== 筛选 Tab —— 胶囊 pill 风格 ===== */
 .filter-tabs {
   display: flex;
-  background-color: #fff;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
+  background-color: var(--bg-card);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
+  gap: 6px;
+  overflow-x: auto;
 }
 
 .tab {
-  flex: 1;
+  flex-shrink: 0;
   text-align: center;
-  padding: 8px 0;
-  font-size: 14px;
-  color: #64748b;
-  position: relative;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -385,31 +410,24 @@ export default {
 }
 
 .tab.active {
-  color: #3b82f6;
-  font-weight: 500;
-}
-
-.tab.active::after {
-  content: "";
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background-color: #3b82f6;
+  color: var(--color-primary);
+  font-weight: 600;
+  background: #eff6ff;
+  border-color: #bfdbfe;
 }
 
 .badge {
-  background-color: #ef4444;
+  background: var(--color-danger);
   color: #fff;
   font-size: 10px;
-  padding: 0 6px;
+  padding: 0 5px;
   border-radius: 10px;
   min-width: 16px;
   text-align: center;
+  line-height: 16px;
 }
 
+/* ===== 会话列表 ===== */
 .conv-list {
   flex: 1;
   min-height: 0;
@@ -421,34 +439,48 @@ export default {
 }
 
 .empty-icon {
-  font-size: 48px;
+  font-size: 64px;
   margin-bottom: 12px;
   display: block;
+  animation: fadeIn 0.3s ease;
 }
 
 .empty-text {
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
 .conv-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background-color: #fff;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px 16px;
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
   position: relative;
 }
 
+.conv-item:active {
+  background-color: var(--bg-hover);
+  transition: background-color var(--transition-fast);
+}
+
 .conv-item.pinned {
-  background-color: #fefce8;
+  background-color: #fffbeb;
+}
+
+.conv-item.pinned::before {
+  content: "📌";
+  position: absolute;
+  left: 48px;
+  font-size: 10px;
+  opacity: 0.6;
 }
 
 .conv-avatar {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--color-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -456,6 +488,7 @@ export default {
   position: relative;
   flex-shrink: 0;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .conv-avatar-img {
@@ -472,15 +505,16 @@ export default {
 
 .mute-indicator {
   position: absolute;
-  bottom: -2px;
-  right: -2px;
-  background: #fff;
+  bottom: -1px;
+  right: -1px;
+  background: var(--bg-card);
   border-radius: 50%;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2px solid var(--bg-card);
 }
 
 .mute-icon {
@@ -502,7 +536,7 @@ export default {
 .conv-name {
   font-size: 16px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text-primary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -524,7 +558,7 @@ export default {
 
 .conv-preview {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -532,20 +566,22 @@ export default {
 }
 
 .recalled {
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
+/* 微信风格红点 badge */
 .unread-badge {
-  background-color: #ef4444;
+  background: var(--color-danger);
   color: #fff;
   font-size: 10px;
-  padding: 0 6px;
+  padding: 2px 6px;
   border-radius: 10px;
   min-width: 18px;
   text-align: center;
   margin-left: 8px;
   flex-shrink: 0;
+  font-weight: 600;
 }
 
 .pin-indicator {
@@ -553,13 +589,13 @@ export default {
 }
 
 .pin-icon {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .loading-more {
   text-align: center;
   padding: 16px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 </style>

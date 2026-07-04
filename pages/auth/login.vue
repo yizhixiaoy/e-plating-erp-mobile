@@ -521,7 +521,7 @@ function startScanPoll() {
             if (data.sessionKey) {
               auth.saveSessionKey(data.sessionKey);
             }
-            uni.switchTab({ url: "/pages/message/list" });
+            uni.switchTab({ url: "/pages/workbench/index" });
           }
         } else if (data.status === "EXPIRED") {
           stopScanPoll();

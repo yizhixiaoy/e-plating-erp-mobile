@@ -72,21 +72,22 @@ async function onSubmit() {
 <style scoped>
 .cp-container {
   min-height: 100%;
-  background: #f5f7fa;
+  background: var(--bg-page);
   padding: 16px 12px;
 }
 
 .cp-form {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   padding: 4px 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .cp-row {
   display: flex;
   align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .cp-row:last-child {
@@ -95,41 +96,51 @@ async function onSubmit() {
 
 .cp-label {
   width: 84px;
-  color: #475569;
+  color: var(--text-secondary);
   font-size: 14px;
+  font-weight: 500;
 }
 
 .cp-input {
   flex: 1;
-  font-size: 14px;
-  color: #1e293b;
+  font-size: 15px;
+  color: var(--text-primary);
   height: 32px;
   line-height: 32px;
 }
 
 .cp-tip {
-  margin: 12px 4px;
+  margin: 16px 4px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .cp-tip text {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 .cp-submit {
-  margin-top: 16px;
-  background: #3b82f6;
+  margin-top: 24px;
+  background: var(--color-gradient);
   color: #fff;
   text-align: center;
   padding: 14px 0;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 15px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-fast);
+}
+
+.cp-submit:active {
+  transform: scale(0.98);
 }
 
 .cp-submit.disabled {
-  background: #93c5fd;
+  background: var(--border-strong);
+  box-shadow: none;
+  color: var(--text-tertiary);
 }
 </style>

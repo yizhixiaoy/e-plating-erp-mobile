@@ -41,9 +41,6 @@
     <scroll-view scroll-y class="wb-scroll">
       <!-- 快捷入口 -->
       <view class="wb-card">
-        <view class="wb-card-title">
-          <text>快捷入口</text>
-        </view>
         <view class="wb-quick-grid">
           <view class="wb-quick-item" v-for="q in quickAccess" :key="q.key" @click="onQuickClick(q)">
             <view class="wb-quick-icon" :style="{ background: q.color }">
@@ -287,7 +284,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f5f7fa;
+  background: var(--bg-page);
 }
 
 .wb-scroll {
@@ -295,9 +292,10 @@ export default {
   min-height: 0;
 }
 
+/* ===== 顶部欢迎区 ===== */
 .wb-header {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  padding: 32px 16px 60px;
+  background: var(--color-gradient);
+  padding: 40px 16px 48px;
   color: #fff;
   flex-shrink: 0;
 }
@@ -309,14 +307,16 @@ export default {
 }
 
 .wb-avatar {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .wb-avatar-img {
@@ -327,7 +327,7 @@ export default {
 
 .wb-avatar-text {
   color: #fff;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 
@@ -338,25 +338,33 @@ export default {
 }
 
 .wb-greet-hi {
-  font-size: 16px;
+  font-size: 18px;
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .wb-greet-sub {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
-  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-white-secondary);
+  margin-top: 3px;
 }
 
 .wb-scan {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  backdrop-filter: blur(4px);
+}
+
+.wb-scan:active {
+  background: rgba(255, 255, 255, 0.3);
+  transition: background var(--transition-fast);
 }
 
 .wb-scan-icon {
@@ -364,13 +372,15 @@ export default {
   font-size: 14px;
 }
 
+/* ===== 统计卡片区 —— 白色卡片悬浮 ===== */
 .wb-stats {
-  margin-top: 20px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 14px 8px;
+  margin-top: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-lg);
+  padding: 16px 8px 12px;
   display: flex;
   justify-content: space-around;
+  backdrop-filter: blur(8px);
 }
 
 .wb-stat {
@@ -378,38 +388,50 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 4px 0;
+}
+
+.wb-stat:active {
+  transform: scale(0.95);
+  transition: transform var(--transition-fast);
 }
 
 .wb-stat-num {
   color: #fff;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .wb-stat-label {
   color: rgba(255, 255, 255, 0.85);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 4px;
 }
 
+/* ===== 白色卡片 ===== */
 .wb-card {
-  margin: -36px 12px 12px;
-  background: #fff;
-  border-radius: 12px;
+  margin: -28px 12px 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding-top: 34px;
+  box-shadow: var(--shadow-md);
 }
+
 .wb-card + .wb-card {
   margin-top: 12px;
 }
 
 .wb-card-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 12px;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  letter-spacing: 0.2px;
 }
 
+/* ===== 快捷入口 ===== */
 .wb-quick-grid {
   display: flex;
   flex-wrap: wrap;
@@ -420,42 +442,55 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.wb-quick-item:active {
+  transform: scale(0.92);
+  transition: transform var(--transition-fast);
 }
 
 .wb-quick-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 6px;
+  box-shadow: var(--shadow-sm);
 }
 
 .wb-quick-icon-text {
   color: #fff;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
+  line-height: 1;
 }
 
 .wb-quick-label {
-  font-size: 12px;
-  color: #475569;
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  line-height: 1.4;
 }
 
+/* ===== Tab 切换 ===== */
 .wb-tabs {
   display: flex;
-  border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: 10px;
 }
 
 .wb-tab {
   flex: 1;
   text-align: center;
-  padding: 8px 0 12px;
+  padding: 10px 0 14px;
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-secondary);
   position: relative;
   display: flex;
   justify-content: center;
@@ -464,8 +499,8 @@ export default {
 }
 
 .wb-tab.active {
-  color: #3b82f6;
-  font-weight: 500;
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .wb-tab.active::after {
@@ -474,19 +509,21 @@ export default {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background: #3b82f6;
+  width: 28px;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 2px;
 }
 
 .wb-tab-badge {
-  background: #ef4444;
+  background: var(--color-danger);
   color: #fff;
   font-size: 10px;
-  padding: 0 6px;
+  padding: 0 5px;
   border-radius: 10px;
   min-width: 16px;
   text-align: center;
+  line-height: 16px;
 }
 
 .wb-tab-body {
@@ -496,16 +533,19 @@ export default {
 .wb-empty {
   text-align: center;
   padding: 32px 0;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   font-size: 13px;
+  animation: fadeIn 0.3s ease;
 }
 
+/* ===== 列表项 ===== */
 .wb-list-row {
   display: flex;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-light);
 }
+
 .wb-list-row:last-child {
   border-bottom: none;
 }
@@ -518,20 +558,22 @@ export default {
 }
 
 .wb-list-title {
-  font-size: 14px;
-  color: #1e293b;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .wb-list-sub {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-tertiary);
 }
 
 .wb-list-tag {
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
   margin-left: 8px;
+  font-weight: 500;
 }
 
 .tag-pending {

@@ -1,11 +1,11 @@
 {
   "globalStyle": {
-    "navigationBarTextStyle": "black",
+    "navigationBarTextStyle": "white",
     "navigationBarTitleText": "E-Plating ERP",
-    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarBackgroundColor": "#3b82f6",
     "backgroundColor": "#f5f7fa",
     "backgroundTextStyle": "light",
-    "navigationStyle": "default"
+    "backgroundFillColor": "#f5f7fa"
   },
   "pages": [
     { "path": "pages/workbench/index", "style": { "navigationBarTitleText": "工作台" } },
@@ -34,10 +34,11 @@
     { "path": "pages/ai/knowledge", "style": { "navigationBarTitleText": "知识库" } }
   ],
   "tabBar": {
-    "color": "#64748b",
+    "color": "#94a3b8",
     "selectedColor": "#3b82f6",
     "backgroundColor": "#ffffff",
-    "borderStyle": "black",
+    "borderStyle": "white",
+    "shadowSize": 0,
     "list": [
       { "pagePath": "pages/workbench/index", "text": "工作台" },
       { "pagePath": "pages/chat/list", "text": "聊天" },
