@@ -8,10 +8,10 @@
     "backgroundFillColor": "#f5f7fa"
   },
   "pages": [
-    { "path": "pages/workbench/index", "style": { "navigationBarTitleText": "工作台" } },
-    { "path": "pages/message/list", "style": { "navigationBarTitleText": "消息中心" } },
+    { "path": "pages/workbench/index", "style": { "navigationBarTitleText": "工作台", "navigationStyle": "custom" } },
+    { "path": "pages/message/list", "style": { "navigationBarTitleText": "消息中心", "navigationStyle": "custom" } },
     { "path": "pages/contacts/index", "style": { "navigationBarTitleText": "通讯录" } },
-    { "path": "pages/me/index", "style": { "navigationBarTitleText": "我的" } },
+    { "path": "pages/me/index", "style": { "navigationBarTitleText": "我的", "navigationStyle": "custom" } },
     { "path": "pages/auth/login", "style": { "navigationBarTitleText": "登录", "navigationStyle": "custom" } },
     { "path": "pages/auth/scan-confirm", "style": { "navigationBarTitleText": "扫码确认", "navigationStyle": "custom" } },
     { "path": "pages/message/detail", "style": { "navigationBarTitleText": "消息详情", "navigationStyle": "custom" } },
@@ -31,7 +31,13 @@
     { "path": "pages/message/sms-records", "style": { "navigationBarTitleText": "短信记录" } },
     { "path": "pages/ai/chat", "style": { "navigationBarTitleText": "AI对话", "navigationStyle": "custom" } },
     { "path": "pages/ai/writer", "style": { "navigationBarTitleText": "AI写作" } },
-    { "path": "pages/ai/knowledge", "style": { "navigationBarTitleText": "知识库" } }
+    { "path": "pages/ai/knowledge", "style": { "navigationBarTitleText": "知识库" } },
+    { "path": "pages/goods-order/index", "style": { "navigationBarTitleText": "开单管理" } },
+    { "path": "pages/goods-order/order", "style": { "navigationBarTitleText": "新增开单" } },
+    { "path": "pages/goods-order/detail", "style": { "navigationBarTitleText": "开单详情" } },
+    { "path": "pages/goods-order/process", "style": { "navigationBarTitleText": "加工录入" } },
+    { "path": "pages/goods-order/customers", "style": { "navigationBarTitleText": "客户管理" } },
+    { "path": "pages/goods-order/customer-form", "style": { "navigationBarTitleText": "新增客户公司" } }
   ],
   "tabBar": {
     "color": "#94a3b8",
@@ -46,5 +52,15 @@
       { "pagePath": "pages/contacts/index", "text": "通讯录" },
       { "pagePath": "pages/me/index", "text": "我的" }
     ]
-  }
+  },
+	"condition" : {
+		"current": 0,
+		"list": [
+			{
+				"name": "",
+				"path": "",
+				"query": ""
+			}
+		]
+	}
 }

@@ -44,7 +44,7 @@
 
       <view v-for="item in results" :key="item.id" class="result-item" @click="selectMember(item)">
         <view class="result-avatar">
-          <image v-if="getImageUrl(item.avatarUrl)" :src="getImageUrl(item.avatarUrl)" class="result-avatar-img" mode="aspectFill" />
+          <image v-if="getImageUrl(item.avatarUrl)" :src="getAvatarSrc(item)" class="result-avatar-img" mode="aspectFill" />
           <text v-else class="avatar-char">{{ (item.realName || item.username || 'U').slice(0, 1) }}</text>
         </view>
         <view class="result-info">
@@ -72,6 +72,7 @@ import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
 import { getImageUrl } from "../../utils/image-url.js";
+import { preloadImages } from "../../utils/image-preloader.js";
 
 const mode = ref("single");
 const keyword = ref("");
@@ -81,6 +82,14 @@ const groupName = ref("");
 const searching = ref(false);
 
 let searchTimer = null;
+
+// 头像预加载：URL -> 本地路径映射
+const avatarMap = ref({});
+
+function getAvatarSrc(item) {
+  const remoteUrl = getImageUrl(item.avatarUrl);
+  return avatarMap.value[remoteUrl] || remoteUrl;
+}
 
 const canCreate = computed(() => {
   if (mode.value === "single") return selected.value.length === 1;
@@ -103,10 +112,28 @@ async function doSearch() {
   try {
     const res = await http.get(apiCfg.chat.contactsSearch, { keyword: kw, limit: 20 }, { silent: true });
     results.value = res.data || [];
+
+    // 预加载头像
+    preloadResultAvatars(results.value);
   } catch (e) {
     results.value = [];
   } finally {
     searching.value = false;
+  }
+}
+
+async function preloadResultAvatars(userList) {
+  const urls = userList
+    .map(u => getImageUrl(u.avatarUrl))
+    .filter(Boolean);
+  if (!urls.length) return;
+  try {
+    const results = await preloadImages(urls);
+    const map = { ...avatarMap.value };
+    results.forEach((localPath, url) => { map[url] = localPath; });
+    avatarMap.value = map;
+  } catch (e) {
+    console.warn('[new-chat] avatar preload failed:', e);
   }
 }
 

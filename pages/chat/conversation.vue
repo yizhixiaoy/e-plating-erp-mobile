@@ -7,7 +7,7 @@
       </view>
       <view class="nav-center" @click="onHeaderClick">
         <view v-if="convType === 'SINGLE'" class="nav-avatar">
-          <image v-if="peerAvatarUrl" :src="peerAvatarUrl" class="nav-avatar-img" mode="aspectFill" />
+          <image v-if="peerAvatarSrc" :src="peerAvatarSrc" class="nav-avatar-img" mode="aspectFill" />
           <text v-else class="nav-avatar-char">{{ convName.slice(0, 1) }}</text>
         </view>
         <view class="nav-title-wrap">
@@ -57,7 +57,7 @@
           @touchmove="onMsgTouchMove"
         >
           <view v-if="convType === 'GROUP' && msg.senderId !== myUserId" class="msg-avatar-left" @click="showUserProfile(msg.senderId)">
-            <image v-if="getImageUrl(msg.senderAvatar)" :src="getImageUrl(msg.senderAvatar)" class="msg-avatar-img" mode="aspectFill" />
+            <image v-if="getSenderAvatarSrc(getImageUrl(msg.senderAvatar))" :src="getSenderAvatarSrc(getImageUrl(msg.senderAvatar))" class="msg-avatar-img" mode="aspectFill" />
             <text v-else class="avatar-char">{{ (msg.senderName || 'U').slice(0, 1) }}</text>
           </view>
 
@@ -108,7 +108,7 @@
           </view>
 
           <view v-if="msg.senderId === myUserId" class="msg-avatar-right" @click="showMyProfile">
-            <image v-if="myAvatarUrl" :src="myAvatarUrl" class="msg-avatar-img" mode="aspectFill" />
+            <image v-if="myAvatarSrc" :src="myAvatarSrc" class="msg-avatar-img" mode="aspectFill" @error="onMyAvatarError" />
             <text v-else class="avatar-char">{{ myAvatarText }}</text>
           </view>
         </view>
@@ -121,7 +121,7 @@
     <view v-if="showDetail" class="popup-overlay" @click="showDetail = false">
       <view class="popup-sheet" @click.stop>
         <view class="popup-sheet-header">
-          <image v-if="peerAvatarUrl" :src="peerAvatarUrl" class="popup-sheet-avatar" mode="aspectFill" />
+          <image v-if="peerAvatarSrc" :src="peerAvatarSrc" class="popup-sheet-avatar" mode="aspectFill" />
           <text v-else class="popup-sheet-avatar-char">{{ convName.slice(0, 1) }}</text>
           <text class="popup-sheet-name">{{ convName }}</text>
           <text class="popup-sheet-sub">{{ convType === 'SINGLE' ? '单聊' : '群聊' }}{{ convType === 'GROUP' ? ' · ' + memberCount + '人' : '' }}</text>
@@ -177,7 +177,7 @@
     <view v-if="profileVisible" class="popup-overlay" @click="profileVisible = false">
       <view class="popup-sheet" @click.stop>
         <view class="popup-sheet-header">
-          <image v-if="myAvatarUrl" :src="myAvatarUrl" class="popup-sheet-avatar" mode="aspectFill" />
+          <image v-if="myAvatarSrc" :src="myAvatarSrc" class="popup-sheet-avatar" mode="aspectFill" />
           <text v-else class="popup-sheet-avatar-char">{{ myAvatarText }}</text>
           <text class="popup-sheet-name">{{ userInfo.realName || userInfo.username || '我' }}</text>
           <text v-if="userInfo.position" class="popup-sheet-sub">{{ userInfo.position }}</text>
@@ -276,6 +276,7 @@ import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
 import { uploadFile } from "../../utils/file-upload.js";
 import { getImageUrl } from "../../utils/image-url.js";
+import { loadImage, preloadImages } from "../../utils/image-preloader.js";
 import { fetchDictData } from "../../utils/dict.js";
 
 const conversationId = ref(null);
@@ -346,6 +347,53 @@ const myAvatarText = computed(() => (userInfo.value.realName || userInfo.value.u
 const myAvatarUrl = computed(() => getImageUrl(userInfo.value.avatarUrl, "avatar.jpg"));
 const peerAvatarUrl = computed(() => getImageUrl(peerAvatar.value, "avatar.jpg"));
 
+// 头像预加载：URL -> data URI 映射
+const myAvatarSrc = ref("");
+const peerAvatarSrc = ref("");
+const senderAvatarMap = ref({});
+const myAvatarError = ref(false);
+
+/** 根据远程 URL 获取已预加载的显示路径 */
+function getSenderAvatarSrc(remoteUrl) {
+  if (!remoteUrl) return "";
+  return senderAvatarMap.value[remoteUrl] || "";
+}
+
+/** 预加载导航栏头像（我的 + 对方的） */
+async function preloadNavAvatars() {
+  const myUrl = myAvatarUrl.value;
+  if (myUrl && !myAvatarError.value) {
+    myAvatarSrc.value = await loadImage(myUrl);
+  }
+  const peerUrl = peerAvatarUrl.value;
+  if (peerUrl) {
+    peerAvatarSrc.value = await loadImage(peerUrl);
+  }
+}
+
+function onMyAvatarError() {
+  myAvatarError.value = true;
+  myAvatarSrc.value = "";
+}
+
+/** 批量预加载消息发送者头像 */
+async function preloadSenderAvatars(msgs) {
+  const urls = [...new Set(
+    msgs
+      .map(m => getImageUrl(m.senderAvatar))
+      .filter(Boolean)
+  )];
+  if (!urls.length) return;
+  try {
+    const results = await preloadImages(urls);
+    const map = { ...senderAvatarMap.value };
+    results.forEach((localPath, url) => {
+      if (localPath) map[url] = localPath;
+    });
+    senderAvatarMap.value = map;
+  } catch (e) { /* ignore */ }
+}
+
 let pollTimer = null;
 
 const urlName = ref("");
@@ -383,6 +431,7 @@ onLoad((query) => {
     loadMessages();
     startPolling();
   }
+  preloadNavAvatars();
   loadEmojis();
 });
 
@@ -400,6 +449,8 @@ async function loadMessages(before) {
       const firstId = messages.value.length > 0 ? messages.value[0].id : null;
       messages.value = [...list, ...messages.value];
       hasMoreHistory.value = list.length >= 30;
+      // 预加载历史消息中的发送者头像
+      preloadSenderAvatars(list);
       // 保持滚动位置：滚动到之前第一条消息
       if (firstId) {
         await nextTick();
@@ -409,6 +460,8 @@ async function loadMessages(before) {
     } else {
       messages.value = list;
       hasMoreHistory.value = list.length >= 30;
+      // 预加载发送者头像
+      preloadSenderAvatars(list);
       await nextTick();
       // 首次加载或发送消息后都滚动到底部
       scrollToBottom();
@@ -871,7 +924,7 @@ onUnmounted(() => {
 .nav-bar {
   display: flex;
   align-items: center;
-  padding: var(--status-bar-height, 44px) 16px 12px;
+  padding: calc(var(--status-bar-height) + 6px) 16px 10px;
   background: var(--color-gradient);
   flex-shrink: 0;
 }

@@ -33,7 +33,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 import apiConfig from "../../config/api.js";
 import * as auth from "../../utils/auth.js";
 import { request } from "../../utils/request.js";
@@ -45,13 +46,9 @@ const loading = ref(false);
 // 当前登录用户信息（从存储中读取）
 const currentUser = ref(null);
 
-// 生命周期
-onMounted(() => {
-  // 获取URL参数（兼容 ticket / qrToken 两个参数名）
-  const pages = getCurrentPages();
-  const currentPage = pages[pages.length - 1];
-  const options = currentPage.options;
-  qrToken.value = options.qrToken || options.ticket || "";
+// 生命周期：使用 onLoad 接收参数，兼容 H5 和真机
+onLoad((options) => {
+  qrToken.value = (options && (options.qrToken || options.ticket)) || "";
   
   currentUser.value = auth.getUserInfo();
   

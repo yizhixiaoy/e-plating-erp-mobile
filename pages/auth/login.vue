@@ -11,7 +11,6 @@
       <view class="login-tabs">
         <view :class="['tab', loginType === 'PASSWORD' ? 'active' : '']" @click="loginType = 'PASSWORD'">账号密码</view>
         <view :class="['tab', loginType === 'SMS_CODE' ? 'active' : '']" @click="loginType = 'SMS_CODE'">短信验证</view>
-        <view :class="['tab', loginType === 'SCAN_CODE' ? 'active' : '']" @click="loginType = 'SCAN_CODE'">扫码登录</view>
       </view>
 
       <!-- 租户信息 - 账号反显 -->
@@ -31,11 +30,16 @@
         </view>
         <view class="form-item">
           <text class="label">密码</text>
-          <input v-model="password" password @input="validatePassword" :class="{ 'error': passwordError }" placeholder="请输入密码" class="input" />
+          <view class="pwd-input-row">
+            <view class="pwd-input-box">
+              <input v-model="password" :password="!showLoginPwd" @input="validatePassword" :class="{ 'error': passwordError }" placeholder="请输入密码" class="input" />
+            </view>
+            <view class="eye-toggle" :style="{ backgroundImage: 'url(' + (showLoginPwd ? ICON_EYE_OPEN : ICON_EYE_CLOSE) + ')' }" @click="showLoginPwd = !showLoginPwd"></view>
+          </view>
           <text v-if="passwordError" class="error-tip">{{ passwordError }}</text>
         </view>
         <view class="form-item">
-          <checkbox v-model="rememberTenant" class="checkbox" />
+          <checkbox :checked="rememberTenant" @change="rememberTenant = $event.detail.value" class="checkbox" />
           <text class="checkbox-label">记住当前用户</text>
         </view>
       </view>
@@ -59,24 +63,8 @@
         </view>
       </view>
 
-      <!-- 扫码登录 -->
-      <view v-else-if="loginType === 'SCAN_CODE'" class="login-form">
-        <view class="qr-container">
-          <view class="qr-code" @click="refreshQrCode">
-            <image v-if="qrImage" :src="qrImage" mode="widthFix" class="qr-img" />
-            <view v-else class="qr-placeholder">
-              <text>扫码登录</text>
-              <text class="qr-tip">请使用企业APP扫描二维码</text>
-            </view>
-            <text class="qr-expire">有效期：{{ qrExpire }}</text>
-          </view>
-        </view>
-        <text v-if="scanStatus" class="scan-status">{{ scanStatus }}</text>
-        <button @click="refreshQrCode" class="refresh-btn">刷新二维码</button>
-      </view>
-
       <!-- 登录按钮 -->
-      <button v-if="loginType !== 'SCAN_CODE'" :loading="loading" :disabled="!canLogin" @click="handleLogin" class="login-btn">
+      <button :loading="loading" :disabled="!canLogin" @click="handleLogin" class="login-btn">
         登录
       </button>
 
@@ -107,12 +95,22 @@
         </view>
         <view class="form-item">
           <text class="label">新密码</text>
-          <input v-model="newPassword" password @input="validateNewPassword" :class="{ 'error': newPasswordError }" placeholder="请输入新密码" class="input" />
+          <view class="pwd-input-row">
+            <view class="pwd-input-box">
+              <input v-model="newPassword" :password="!showForgotNewPwd" @input="validateNewPassword" :class="{ 'error': newPasswordError }" placeholder="请输入新密码" class="input" />
+            </view>
+            <view class="eye-toggle" :style="{ backgroundImage: 'url(' + (showForgotNewPwd ? ICON_EYE_OPEN : ICON_EYE_CLOSE) + ')' }" @click="showForgotNewPwd = !showForgotNewPwd"></view>
+          </view>
           <text v-if="newPasswordError" class="error-tip">{{ newPasswordError }}</text>
         </view>
         <view class="form-item">
           <text class="label">确认密码</text>
-          <input v-model="confirmPassword" password @input="validateConfirmPassword" :class="{ 'error': confirmPasswordError }" placeholder="请再次输入新密码" class="input" />
+          <view class="pwd-input-row">
+            <view class="pwd-input-box">
+              <input v-model="confirmPassword" :password="!showForgotConfirmPwd" @input="validateConfirmPassword" :class="{ 'error': confirmPasswordError }" placeholder="请再次输入新密码" class="input" />
+            </view>
+            <view class="eye-toggle" :style="{ backgroundImage: 'url(' + (showForgotConfirmPwd ? ICON_EYE_OPEN : ICON_EYE_CLOSE) + ')' }" @click="showForgotConfirmPwd = !showForgotConfirmPwd"></view>
+          </view>
           <text v-if="confirmPasswordError" class="error-tip">{{ confirmPasswordError }}</text>
         </view>
         <view class="modal-buttons">
@@ -125,7 +123,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import JSEncrypt from "jsencrypt";
 
 // 导入配置文件
 import apiConfig from "../../config/api.js";
@@ -170,13 +169,15 @@ const smsCodeError = ref("");
 // 倒计时
 const smsCountdown = ref(0);
 const smsSending = ref(false);
-const qrExpire = ref("02:00");
-const qrExpireSeconds = ref(120);
-let qrTimer = null;
-let scanPollTimer = null;
-const qrImage = ref("");
-const qrToken = ref("");
-const scanStatus = ref("");
+
+// 密码显示/隐藏
+const showLoginPwd = ref(false);
+const showForgotNewPwd = ref(false);
+const showForgotConfirmPwd = ref(false);
+
+// Element Plus 风格眼睛图标 SVG（与 Web 端一致）
+const ICON_EYE_OPEN = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#a8abb2" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>');
+const ICON_EYE_CLOSE = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#a8abb2" d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>');
 
 // 忘记密码
 const showForgotPassword = ref(false);
@@ -196,10 +197,9 @@ const confirmPasswordError = ref("");
 const canLogin = computed(() => {
   if (loginType.value === 'PASSWORD') {
     return !usernameError.value && !passwordError.value && username.value && password.value;
-  } else if (loginType.value === 'SMS_CODE') {
-    return !phoneError.value && !smsCodeError.value && phone.value && smsCode.value;
   }
-  return true;
+  // SMS_CODE
+  return !phoneError.value && !smsCodeError.value && phone.value && smsCode.value;
 });
 
 const canResetPassword = computed(() => {
@@ -209,29 +209,21 @@ const canResetPassword = computed(() => {
 
 // 生命周期
 onMounted(() => {
-  // 等待用户输入账号后自动反显企业信息
-});
-
-onUnmounted(() => {
-  if (qrTimer) {
-    clearInterval(qrTimer);
-    qrTimer = null;
+  // 恢复上次记住的登录信息
+  const savedUsername = uni.getStorageSync('lastUsername');
+  const savedPhone = uni.getStorageSync('lastPhone');
+  const savedTenantCode = uni.getStorageSync(LAST_TENANT_CODE_KEY);
+  
+  if (savedUsername) {
+    username.value = savedUsername;
+    loginType.value = 'PASSWORD';
+  } else if (savedPhone) {
+    phone.value = savedPhone;
+    loginType.value = 'SMS_CODE';
   }
-  stopScanPoll();
-});
-
-// 监听登录方式变化
-watch(loginType, (newType) => {
-  if (newType === "SCAN_CODE") {
-    startQrCountdown();
-    refreshQrCode();
-  } else if (qrTimer) {
-    clearInterval(qrTimer);
-    qrTimer = null;
-  }
-  if (newType !== "SCAN_CODE") {
-    stopScanPoll();
-    scanStatus.value = "";
+  // 有保存信息说明上次勾选了记住，默认保持勾选
+  if (savedUsername || savedPhone) {
+    rememberTenant.value = true;
   }
 });
 
@@ -438,111 +430,6 @@ async function sendForgotSmsCode() {
   }
 }
 
-// 扫码登录
-function startQrCountdown() {
-  if (qrTimer) {
-    clearInterval(qrTimer);
-  }
-  qrExpireSeconds.value = 120;
-  updateQrExpireDisplay();
-  qrTimer = setInterval(() => {
-    qrExpireSeconds.value--;
-    updateQrExpireDisplay();
-    if (qrExpireSeconds.value <= 0) {
-      clearInterval(qrTimer);
-      uni.showToast({ title: "二维码已过期，请刷新", icon: "none" });
-    }
-  }, 1000);
-}
-
-function updateQrExpireDisplay() {
-  const minutes = Math.floor(qrExpireSeconds.value / 60);
-  const seconds = qrExpireSeconds.value % 60;
-  qrExpire.value = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
-
-async function refreshQrCode() {
-  stopScanPoll();
-  scanStatus.value = "";
-  try {
-    const resp = await uni.request({
-      url: `${apiBase}/auth/scan-ticket`,
-      method: "POST",
-      data: { clientType: "H5" }
-    });
-    if (resp.data?.code === 200 && resp.data?.data) {
-      const data = resp.data.data;
-      if (data.qrImage) {
-        qrImage.value = data.qrImage;
-      }
-      if (data.qrToken) {
-        qrToken.value = data.qrToken;
-        if (data.expiresIn) {
-          qrExpireSeconds.value = data.expiresIn;
-          updateQrExpireDisplay();
-        }
-        startQrCountdown();
-        startScanPoll();
-        uni.showToast({ title: "二维码已刷新", icon: "success" });
-      }
-    }
-  } catch (error) {
-    uni.showToast({ title: "二维码刷新失败", icon: "none" });
-  }
-}
-
-// 扫码状态轮询
-function startScanPoll() {
-  scanStatus.value = "等待扫码...";
-  scanPollTimer = setInterval(async () => {
-    if (!qrToken.value) return;
-    try {
-      const resp = await uni.request({
-        url: `${apiBase}/auth/scan-status?qrToken=${encodeURIComponent(qrToken.value)}`,
-        method: "GET"
-      });
-      if (resp.data?.code === 200) {
-        const data = resp.data.data;
-        if (data.status === "SCANNED") {
-          scanStatus.value = "已扫码，请在手机端确认登录";
-        } else if (data.status === "CONFIRMED") {
-          stopScanPoll();
-          clearInterval(qrTimer);
-          scanStatus.value = "登录成功，正在跳转...";
-          // 自动完成登录
-          if (data.accessToken) {
-            auth.setToken(data.accessToken);
-            if (data.refreshToken) {
-              auth.setRefreshToken(data.refreshToken);
-            }
-            if (data.userInfo) {
-              auth.setUserInfo(data.userInfo);
-            }
-            if (data.sessionKey) {
-              auth.saveSessionKey(data.sessionKey);
-            }
-            uni.switchTab({ url: "/pages/workbench/index" });
-          }
-        } else if (data.status === "EXPIRED") {
-          stopScanPoll();
-          qrImage.value = "";
-          scanStatus.value = "二维码已过期，点击刷新";
-          uni.showToast({ title: "二维码已过期", icon: "none" });
-        }
-      }
-    } catch (error) {
-      console.error('扫码状态轮询失败:', error);
-    }
-  }, 2000);
-}
-
-function stopScanPoll() {
-  if (scanPollTimer) {
-    clearInterval(scanPollTimer);
-    scanPollTimer = null;
-  }
-}
-
 // 登录处理
 async function handleLogin() {
   // 先校验表单（与 Web 端一致）
@@ -577,7 +464,6 @@ async function handleLogin() {
     if (loginType.value === 'PASSWORD') {
       // RSA 加密密码传输
       try {
-        const JSEncrypt = (await import("jsencrypt")).default;
         const clientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const keyResp = await uni.request({
           url: `${apiBase}/auth/public-key?clientId=${encodeURIComponent(clientId)}`,
@@ -626,8 +512,18 @@ async function handleLogin() {
       }
       if (rememberTenant.value) {
         uni.setStorageSync(LAST_TENANT_CODE_KEY, autoTenantInfo.value?.shortCode || '');
+        // 记住用户名，下次自动填充
+        if (loginType.value === 'PASSWORD') {
+          uni.setStorageSync('lastUsername', username.value);
+        } else if (loginType.value === 'SMS_CODE') {
+          uni.setStorageSync('lastPhone', phone.value);
+        }
+      } else {
+        // 未勾选则清除
+        uni.removeStorageSync('lastUsername');
+        uni.removeStorageSync('lastPhone');
       }
-      uni.switchTab({ url: "/pages/message/list" });
+      uni.switchTab({ url: "/pages/workbench/index" });
     } else {
       uni.showToast({ title: resp.data?.msg || "登录失败", icon: "none" });
     }
@@ -837,75 +733,6 @@ async function handleForgotPassword() {
   color: #64748b;
 }
 
-.qr-container {
-  display: flex;
-  justify-content: center;
-  margin: 20px 0;
-}
-
-.qr-code {
-  width: 200px;
-  min-height: 200px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background-color: #f8fafc;
-  overflow: hidden;
-}
-
-.qr-img {
-  width: 180px;
-  height: 180px;
-  display: block;
-}
-
-.qr-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.qr-placeholder text:first-child {
-  font-size: 14px;
-  color: #64748b;
-}
-
-.qr-tip {
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 8px;
-}
-
-.qr-expire {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-top: 8px;
-  padding-bottom: 12px;
-}
-
-.scan-status {
-  display: block;
-  text-align: center;
-  font-size: 13px;
-  color: #3b82f6;
-  margin-top: 12px;
-}
-
-.refresh-btn {
-  margin-top: 16px;
-  padding: 10px;
-  border: 1px solid #3b82f6;
-  border-radius: 4px;
-  background-color: #fff;
-  color: #3b82f6;
-  font-size: 14px;
-}
-
 .login-btn {
   width: 100%;
   padding: 12px;
@@ -982,5 +809,29 @@ async function handleForgotPassword() {
   background-color: #3b82f6;
   color: #fff;
   font-size: 14px;
+}
+
+.pwd-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.pwd-input-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwd-input-row .input {
+  width: 100%;
+}
+
+.eye-toggle {
+  width: 48rpx;
+  height: 48rpx;
+  flex-shrink: 0;
+  background-size: 36rpx;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 </style>

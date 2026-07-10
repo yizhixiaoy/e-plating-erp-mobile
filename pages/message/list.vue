@@ -2,7 +2,6 @@
   <view class="message-container">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="title">消息中心</text>
       <view class="header-actions">
         <text class="action-text" @click="markAllRead">全部已读</text>
       </view>
@@ -35,7 +34,7 @@
     </view>
 
     <!-- 消息列表 -->
-    <scroll-view scroll-y class="message-list" @scrolltolower="loadMore">
+    <scroll-view scroll-y class="message-list" @scrolltolower="loadMore" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
       <view v-if="rows.length === 0" class="empty-state">
         <text class="empty-icon">📭</text>
         <text class="empty-text">暂无消息</text>
@@ -55,7 +54,7 @@
             <text v-if="item.level === 3" class="level-tag urgent">紧急</text>
             <text v-else-if="item.level === 2" class="level-tag important">重要</text>
           </view>
-          <text class="message-time">{{ formatTime(item.publishTime) }}</text>
+          <text class="message-time">{{ formatRelativeTime(item.publishTime) }}</text>
         </view>
 
         <view class="message-content">
@@ -83,6 +82,7 @@ import * as http from "../../utils/request.js";
 import * as dict from "../../utils/dict.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
+import { formatRelativeTime } from "../../utils/time.js";
 
 const rows = ref([]);
 const currentTab = ref("");
@@ -90,6 +90,7 @@ const loading = ref(false);
 const noticeTypeItems = ref([]);
 const totalCount = ref(0);
 const unreadCount = ref(0);
+const refreshing = ref(false);
 
 function getTypeClass(type) {
   return type === "SYS_UPDATE" ? "type-system" : "type-notice";
@@ -97,16 +98,6 @@ function getTypeClass(type) {
 
 function getTypeLabel(type) {
   return dict.getDictLabel(noticeTypeItems.value, type) || type;
-}
-
-function formatTime(time) {
-  if (!time) return "";
-  const date = new Date(time);
-  const diff = Date.now() - date.getTime();
-  if (diff < 60000) return "刚刚";
-  if (diff < 3600000) return Math.floor(diff / 60000) + "分钟前";
-  if (diff < 86400000) return Math.floor(diff / 3600000) + "小时前";
-  return date.toLocaleDateString();
 }
 
 async function load() {
@@ -134,6 +125,16 @@ function switchTab(tab) {
   if (currentTab.value === tab) return;
   currentTab.value = tab;
   load();
+}
+
+async function onRefresh() {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  try {
+    await load();
+  } finally {
+    refreshing.value = false;
+  }
 }
 
 async function markRead(noticeId) {
@@ -180,6 +181,7 @@ onMounted(() => {
   dict.fetchDictData("notice_type").then((items) => { noticeTypeItems.value = items; });
   load();
 });
+
 </script>
 
 <style scoped>
@@ -194,9 +196,9 @@ onMounted(() => {
 /* ===== 顶部导航 ===== */
 .header {
   background: var(--color-gradient);
-  padding: 40px 20px 24px;
+  padding: calc(var(--status-bar-height) + 16px) 20px 20px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   flex-shrink: 0;
 }

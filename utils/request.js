@@ -45,6 +45,24 @@ async function doRefreshToken() {
   }
 }
 
+// HTTP 状态码 → 业务友好提示映射
+const STATUS_MESSAGES = {
+  400: "请求参数有误",
+  403: "权限不足",
+  404: "请求的资源不存在",
+  405: "请求方法不允许",
+  413: "请求体过大",
+  429: "请求过于频繁，请稍后重试",
+  500: "服务器内部错误",
+  502: "网关错误",
+  503: "服务暂不可用，请稍后重试",
+  504: "网关超时"
+};
+
+function getStatusMessage(status) {
+  return STATUS_MESSAGES[status] || ("请求失败(" + status + ")");
+}
+
 function request(options) {
   const token = auth.getToken();
   const header = Object.assign({
@@ -72,6 +90,14 @@ function request(options) {
       success: (res) => {
         const status = res.statusCode;
         if (status === 401) {
+          // 凭证吊销（密码被管理员重置）→ 跳过 refresh，直接跳转登录
+          const msg = res.data?.message || res.data?.msg || '';
+          if (msg === '凭证已失效，请重新登录') {
+            uni.showToast({ title: msg, icon: 'none' });
+            auth.redirectToLogin();
+            reject(new Error('CREDENTIAL_REVOKED'));
+            return;
+          }
           // 与 Web 端一致：先尝试刷新 Token，再重试
           handleUnauthorized(options, resolve, reject);
           return;
@@ -98,7 +124,7 @@ function request(options) {
           }
         } else {
           if (!options.silent) {
-            uni.showToast({ title: "网络异常(" + status + ")", icon: "none" });
+            uni.showToast({ title: getStatusMessage(status), icon: "none" });
           }
           reject(res);
         }
@@ -108,7 +134,7 @@ function request(options) {
           console.error(`[request] ${method} ${fullUrl} → FAIL`, JSON.stringify(err));
         }
         if (!options.silent) {
-          uni.showToast({ title: "网络请求失败", icon: "none" });
+          uni.showToast({ title: "网络连接失败，请检查网络", icon: "none" });
         }
         reject(err);
       }
@@ -204,14 +230,14 @@ function retryRequest(options, resolve, reject) {
         reject(new Error("UNAUTHORIZED"));
       } else {
         if (!options.silent) {
-          uni.showToast({ title: "网络异常(" + status + ")", icon: "none" });
+          uni.showToast({ title: getStatusMessage(status), icon: "none" });
         }
         reject(res);
       }
     },
     fail: (err) => {
       if (!options.silent) {
-        uni.showToast({ title: "网络请求失败", icon: "none" });
+        uni.showToast({ title: "网络连接失败，请检查网络", icon: "none" });
       }
       reject(err);
     }

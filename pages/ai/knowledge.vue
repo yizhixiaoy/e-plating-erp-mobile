@@ -55,6 +55,7 @@
 import { ref, onMounted } from 'vue'
 import { request } from "../../utils/request.js"
 import config from '../../config/api.js'
+import { getToken } from "../../utils/auth.js"
 
 // 文件校验常量（与 Web 端 upload.ts 一致）
 const MAX_KB_FILE_SIZE = 50 * 1024 * 1024  // 50MB
@@ -156,7 +157,6 @@ function chooseFile() {
 function uploadFile(filePath, fileName) {
   return new Promise(async (resolve, reject) => {
     loading.value = true
-    const { getToken } = await import('@/utils/auth.js')
     const token = getToken() || ''
 
     uni.uploadFile({

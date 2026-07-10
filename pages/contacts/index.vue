@@ -14,14 +14,18 @@
     <view class="ct-body">
       <!-- 左侧部门树 -->
       <scroll-view scroll-y class="ct-tree">
-        <view
-          v-for="d in deptTree"
-          :key="d.id"
-          :class="['ct-tree-item', currentDeptId === d.id ? 'active' : '']"
-          @click="onDeptClick(d)"
+        <view v-for="item in flatDeptList" :key="'d-' + item.id"
+          :class="['ct-tree-item', currentDeptId === item.id ? 'active' : '']"
+          :style="{ paddingLeft: (12 + item.level * 16) + 'px' }"
+          @click="onDeptClick(item)"
         >
-          <text class="ct-tree-text">{{ d.deptName }}</text>
-          <text class="ct-tree-count">{{ d.userCount || 0 }}</text>
+          <!-- 展开/折叠箭头 -->
+          <text v-if="item.hasChildren" class="ct-tree-arrow" @click.stop="toggleDept(item.id)">
+            {{ isDeptExpanded(item.id) ? '▾' : '▸' }}
+          </text>
+          <text v-else class="ct-tree-arrow ct-tree-arrow-placeholder"></text>
+          <text class="ct-tree-text">{{ item.deptName }}</text>
+          <text class="ct-tree-count">{{ item.userCount || 0 }}</text>
         </view>
         <view v-if="!deptTree.length" class="ct-empty-tree">
           <text>暂无部门</text>
@@ -29,7 +33,7 @@
       </scroll-view>
 
       <!-- 右侧员工列表 -->
-      <scroll-view scroll-y class="ct-list" @scrolltolower="loadMore">
+      <scroll-view scroll-y class="ct-list" @scrolltolower="loadMore" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
         <view v-if="!userList.length && !loading" class="ct-empty">
           <text>暂无成员</text>
         </view>
@@ -41,7 +45,7 @@
           @click="goDetail(u)"
         >
           <view class="ct-avatar">
-            <image v-if="getImageUrl(u.avatarUrl)" :src="getImageUrl(u.avatarUrl)" class="ct-avatar-img" mode="aspectFill" />
+            <image v-if="getAvatarSrc(u)" :src="getAvatarSrc(u)" class="ct-avatar-img" mode="aspectFill" @error="onAvatarError(u)" />
             <text v-else>{{ initialOf(u) }}</text>
           </view>
           <view class="ct-user-main">
@@ -62,32 +66,100 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, computed } from "vue";
 import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
 import { getImageUrl } from "../../utils/image-url.js";
+import { preloadImages } from "../../utils/image-preloader.js";
 
 const keyword = ref("");
 let searchTimer = null;
 const deptTree = ref([]);
 const currentDeptId = ref("");
+// 已展开的部门 ID 集合（默认展开根节点）
+const expandedDepts = ref(new Set());
+
+/** 判断部门是否展开 */
+function isDeptExpanded(id) {
+  return expandedDepts.value.has(id);
+}
+
+/** 切换部门展开/折叠 */
+function toggleDept(id) {
+  const s = new Set(expandedDepts.value);
+  if (s.has(id)) {
+    s.delete(id);
+  } else {
+    s.add(id);
+  }
+  expandedDepts.value = s;
+}
+
+/** 扁平化部门树（仅展示展开的节点） */
+const flatDeptList = computed(() => {
+  const result = [];
+  function walk(nodes, level) {
+    if (!nodes || !nodes.length) return;
+    for (const n of nodes) {
+      const hasChildren = n.children && n.children.length > 0;
+      result.push({
+        id: n.id,
+        deptName: n.deptName,
+        userCount: n.userCount || 0,
+        hasChildren,
+        level,
+        parentId: n.parentId
+      });
+      if (hasChildren && expandedDepts.value.has(n.id)) {
+        walk(n.children, level + 1);
+      }
+    }
+  }
+  walk(deptTree.value, 0);
+  return result;
+});
 const userList = ref([]);
 const loading = ref(false);
 const pageNum = ref(1);
 const pageSize = ref(20);
 const totalLoaded = ref(0);
 const totalCount = ref(0);
+const refreshing = ref(false);
+
+// 头像预加载：URL -> 本地路径映射
+const avatarMap = ref({});
+
+/** 获取用户头像的显示路径（优先使用预加载的本地路径） */
+function getAvatarSrc(u) {
+  const remoteUrl = getImageUrl(u.avatarUrl);
+  return avatarMap.value[remoteUrl] || "";
+}
 
 function initialOf(u) {
   const name = u.realName || u.username || "?";
   return String(name).slice(0, 1).toUpperCase();
 }
 
+/** 头像加载失败时清除缓存，回退到文字头像 */
+function onAvatarError(u) {
+  const remoteUrl = getImageUrl(u.avatarUrl);
+  if (remoteUrl) {
+    const map = { ...avatarMap.value };
+    delete map[remoteUrl];
+    avatarMap.value = map;
+  }
+}
+
 async function loadDept() {
   try {
     const res = await http.get(apiCfg.contacts.deptTree, null, { silent: true });
     deptTree.value = res.data || [];
+    // 默认展开第一层节点
+    if (deptTree.value.length > 0) {
+      const rootIds = new Set(deptTree.value.map(d => d.id));
+      expandedDepts.value = rootIds;
+    }
   } catch (e) { deptTree.value = []; }
 }
 
@@ -112,8 +184,30 @@ async function loadUsers(reset = true) {
     userList.value = userList.value.concat(records);
     totalLoaded.value = userList.value.length;
     totalCount.value = data.total != null ? Number(data.total) : userList.value.length;
+
+    // 预加载新加载用户的头像
+    preloadUserAvatars(records);
   } catch (e) { /* keep current */ }
   finally { loading.value = false; }
+}
+
+/** 批量预加载用户头像 */
+async function preloadUserAvatars(users) {
+  const urls = users
+    .map(u => getImageUrl(u.avatarUrl))
+    .filter(Boolean);
+  if (!urls.length) return;
+  try {
+    const results = await preloadImages(urls);
+    const map = { ...avatarMap.value };
+    results.forEach((localPath, url) => {
+      map[url] = localPath;
+    });
+    avatarMap.value = map;
+  } catch (e) {
+    // 预加载失败，回退到直接加载
+    console.warn('[contacts] avatar preload failed:', e);
+  }
 }
 
 function onSearch() {
@@ -129,7 +223,11 @@ watch(keyword, () => {
 });
 
 function onDeptClick(d) {
-  // 点击相同部门取消筛选，否则切换
+  // 如果点击的部门有子部门，先切换展开
+  if (d.hasChildren) {
+    toggleDept(d.id);
+  }
+  // 切换当前选中部门来筛选用户
   const newId = String(d.id || "");
   currentDeptId.value = currentDeptId.value === newId ? "" : newId;
   loadUsers(true);
@@ -140,6 +238,16 @@ function loadMore() {
   if (totalLoaded.value >= totalCount.value) return;
   pageNum.value++;
   loadUsers(false);
+}
+
+async function onRefresh() {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  try {
+    await Promise.all([loadDept(), loadUsers(true)]);
+  } finally {
+    refreshing.value = false;
+  }
 }
 
 function goDetail(u) {
@@ -154,6 +262,7 @@ onMounted(() => {
   loadDept();
   loadUsers(true);
 });
+
 </script>
 
 <style scoped>
@@ -213,20 +322,21 @@ onMounted(() => {
 
 /* ===== 左侧部门树 ===== */
 .ct-tree {
-  width: 100px;
+  width: 130px;
   background: var(--bg-card);
   border-right: 1px solid var(--border-light);
   flex-shrink: 0;
 }
 
 .ct-tree-item {
-  padding: 12px 10px;
+  padding: 10px 10px 10px 4px;
   border-bottom: 1px solid var(--border-light);
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 4px;
   position: relative;
   cursor: pointer;
+  min-height: 36px;
 }
 
 .ct-tree-item:active {
@@ -249,6 +359,22 @@ onMounted(() => {
   border-radius: 0 2px 2px 0;
 }
 
+.ct-tree-arrow {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.ct-tree-arrow-placeholder {
+  visibility: hidden;
+}
+
 .ct-tree-text {
   font-size: 13px;
   color: var(--text-primary);
@@ -256,6 +382,8 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .ct-tree-item.active .ct-tree-text {
@@ -264,8 +392,9 @@ onMounted(() => {
 }
 
 .ct-tree-count {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 
 .ct-empty-tree {

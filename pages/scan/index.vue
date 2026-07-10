@@ -103,7 +103,7 @@ function manualInput() {
 .sc-bar {
   display: flex;
   align-items: center;
-  padding: 44px 16px 12px;
+  padding: calc(var(--status-bar-height) + 12px) 16px 12px;
   gap: 12px;
 }
 

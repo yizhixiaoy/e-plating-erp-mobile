@@ -3,6 +3,7 @@
 // userInfo 使用 SM4 加密存储
 
 import * as crypto from './crypto.js';
+import config from "../config/api.js";
 
 const STORAGE_KEYS = {
   token: "token",
@@ -77,7 +78,6 @@ async function tryRefreshToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
   
-  const { default: config } = await import("../config/api.js");
   const url = config.apiBase + "/auth/refresh";
   return new Promise((resolve) => {
     uni.request({

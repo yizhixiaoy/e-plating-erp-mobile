@@ -132,7 +132,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { streamChat, getConversations, getMessages, deleteConversation } from '@/utils/ai-chat.js'
-import { getToken, redirectToLogin } from '@/utils/auth.js'
+import { getToken, redirectToLogin, tryRefreshToken } from '@/utils/auth.js'
 
 // ========= 状态 =========
 const messages = ref([])
@@ -472,7 +472,6 @@ async function send() {
         planSteps.value = []
       },
       onTokenExpired: async (msg) => {
-        const { tryRefreshToken } = await import('@/utils/auth.js')
         const newToken = await tryRefreshToken()
         if (newToken) {
           uni.showToast({ title: '令牌已刷新，请重试', icon: 'none' })
@@ -526,7 +525,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: calc(var(--status-bar-height) + 8px) 12px 8px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-default);
   box-shadow: var(--shadow-sm);
@@ -585,7 +584,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px;
+  padding: calc(var(--status-bar-height) + 12px) 16px 12px;
   border-bottom: 1px solid var(--border-light);
   background: var(--bg-input);
 }

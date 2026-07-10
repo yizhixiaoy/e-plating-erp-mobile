@@ -22,7 +22,7 @@
         @click="toggleSelect(item)"
       >
         <view class="conv-avatar">
-          <image v-if="getImageUrl(item.peerAvatar || item.avatar)" :src="getImageUrl(item.peerAvatar || item.avatar)" class="conv-avatar-img" mode="aspectFill" />
+          <image v-if="getImageUrl(item.peerAvatar || item.avatar)" :src="getAvatarSrc(item)" class="conv-avatar-img" mode="aspectFill" />
           <text v-else class="avatar-text">{{ getAvatarText(item) }}</text>
         </view>
         <view class="conv-info">
@@ -50,12 +50,21 @@ import { onLoad } from "@dcloudio/uni-app";
 import * as http from "../../utils/request.js";
 import apiCfg from "../../config/api.js";
 import { getImageUrl } from "../../utils/image-url.js";
+import { preloadImages } from "../../utils/image-preloader.js";
 
 const conversations = ref([]);
 const selected = ref([]);
 const keyword = ref("");
 const loading = ref(true);
 const messageData = ref(null);
+
+// 头像预加载：URL -> 本地路径映射
+const avatarMap = ref({});
+
+function getAvatarSrc(item) {
+  const remoteUrl = getImageUrl(item.peerAvatar || item.avatar);
+  return avatarMap.value[remoteUrl] || remoteUrl;
+}
 
 const filteredList = computed(() => {
   if (!keyword.value.trim()) return conversations.value;
@@ -79,10 +88,28 @@ async function loadConversations() {
   try {
     const res = await http.get(apiCfg.chat.conversations, { pageNum: 1, pageSize: 100 }, { silent: true });
     conversations.value = res.data?.records || res.data || [];
+
+    // 预加载头像
+    preloadConvAvatars(conversations.value);
   } catch (e) {
     conversations.value = [];
   } finally {
     loading.value = false;
+  }
+}
+
+async function preloadConvAvatars(convList) {
+  const urls = convList
+    .map(c => getImageUrl(c.peerAvatar || c.avatar))
+    .filter(Boolean);
+  if (!urls.length) return;
+  try {
+    const results = await preloadImages(urls);
+    const map = { ...avatarMap.value };
+    results.forEach((localPath, url) => { map[url] = localPath; });
+    avatarMap.value = map;
+  } catch (e) {
+    console.warn('[forward] avatar preload failed:', e);
   }
 }
 

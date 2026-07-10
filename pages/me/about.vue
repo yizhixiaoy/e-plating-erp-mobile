@@ -46,7 +46,7 @@ const features = ref([
 ]);
 
 const businessRoadmap = ref([
-  { key: "customer", label: "客户管理", phase: 2 },
+  { key: "customer", label: "客户管理", ready: true },
   { key: "order", label: "订单管理", phase: 2 },
   { key: "production", label: "生产单流转", phase: 2 },
   { key: "report", label: "现场报工", phase: 3 },

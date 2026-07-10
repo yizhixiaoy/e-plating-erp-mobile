@@ -3,7 +3,7 @@
     <!-- 用户卡 -->
     <view class="me-card">
       <view class="me-avatar">
-        <image v-if="userAvatarUrl" :src="userAvatarUrl" class="me-avatar-img" mode="aspectFill" />
+        <image v-if="avatarSrc" :src="avatarSrc" class="me-avatar-img" mode="aspectFill" @error="onAvatarError" />
         <text v-else class="me-avatar-text">{{ avatarInitial }}</text>
       </view>
       <view class="me-info">
@@ -12,14 +12,14 @@
           {{ profile.deptName || profile.position ? (profile.deptName || "—") + (profile.position ? ' · ' + profile.position : '') : (profile.username || "—") }}
         </text>
         <view class="me-tenant-row">
-          <image v-if="companyLogoUrl" :src="companyLogoUrl" class="me-tenant-logo" mode="aspectFill" />
+          <image v-if="companyLogoSrc" :src="companyLogoSrc" class="me-tenant-logo" mode="aspectFill" />
           <text class="me-tenant">{{ profile.tenantName || profile.companyName || tenantCode }}</text>
         </view>
       </view>
     </view>
 
     <!-- 一级入口 -->
-    <scroll-view scroll-y class="me-scroll">
+    <scroll-view scroll-y class="me-scroll" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
     <view class="me-section">
       <view class="me-section-label">常用功能</view>
       <view class="me-row" @click="goScan">
@@ -94,6 +94,7 @@
       <text>退出登录</text>
     </view>
     </scroll-view>
+    <ConfirmDialog />
   </view>
 </template>
 
@@ -103,6 +104,8 @@ import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
 import { getImageUrl } from "../../utils/image-url.js";
+import { loadImage } from "../../utils/image-preloader.js";
+import { showConfirm } from "../../utils/dialog.js";
 
 const profile = ref(auth.getUserInfo() || {});
 const tenantCode = ref(auth.getTenantCode() || "");
@@ -115,9 +118,30 @@ const avatarInitial = computed(() => {
 });
 
 const userAvatarUrl = computed(() => getImageUrl(profile.value.avatarUrl, "avatar.jpg"));
+const avatarSrc = ref("");
+const avatarError = ref(false);
+const refreshing = ref(false);
 
 // 公司 logo URL（与头像同逻辑，兼容 OSS 路径与资源 URL）
 const companyLogoUrl = computed(() => getImageUrl(profile.value.companyLogoUrl, "logo.png"));
+const companyLogoSrc = ref("");
+
+/** 预加载头像 */
+async function preloadAvatars() {
+  const avatarUrl = userAvatarUrl.value;
+  if (avatarUrl && !avatarError.value) {
+    avatarSrc.value = await loadImage(avatarUrl);
+  }
+  const logoUrl = companyLogoUrl.value;
+  if (logoUrl) {
+    companyLogoSrc.value = await loadImage(logoUrl);
+  }
+}
+
+function onAvatarError() {
+  avatarError.value = true;
+  avatarSrc.value = "";
+}
 
 async function loadProfile() {
   profileLoading.value = true;
@@ -128,6 +152,7 @@ async function loadProfile() {
       // 合并 API 返回数据（覆盖缓存中同名字段，补充 deptName/position 等）
       profile.value = Object.assign({}, profile.value, res.data);
       auth.setUserInfo(profile.value);
+      preloadAvatars();
     }
   } catch (e) {
     console.error("加载用户信息失败:", e);
@@ -136,9 +161,20 @@ async function loadProfile() {
     const cached = auth.getUserInfo();
     if (cached) {
       profile.value = Object.assign({}, profile.value, cached);
+      preloadAvatars();
     }
   } finally {
     profileLoading.value = false;
+  }
+}
+
+async function onRefresh() {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  try {
+    await loadProfile();
+  } finally {
+    refreshing.value = false;
   }
 }
 
@@ -154,20 +190,17 @@ function goSmsRecords() { uni.navigateTo({ url: "/pages/message/sms-records" });
 function goSettings() { uni.navigateTo({ url: "/pages/me/settings" }); }
 function goAbout() { uni.navigateTo({ url: "/pages/me/about" }); }
 
-function logout() {
-  uni.showModal({
+async function logout() {
+  const confirmed = await showConfirm({
     title: "提示",
-    content: "确认退出登录？",
-    success: async (res) => {
-      if (res.confirm) {
-        try {
-          await http.post(apiCfg.login.logout, { refreshToken: auth.getRefreshToken() }, { silent: true });
-        } catch (e) { /* ignore */ }
-        auth.clearAuth();
-        uni.reLaunch({ url: "/pages/auth/login" });
-      }
-    }
+    content: "确认退出登录？"
   });
+  if (!confirmed) return;
+  try {
+    await http.post(apiCfg.login.logout, { refreshToken: auth.getRefreshToken() }, { silent: true });
+  } catch (e) { /* ignore */ }
+  auth.clearAuth();
+  uni.reLaunch({ url: "/pages/auth/login" });
 }
 
 onMounted(() => {
@@ -177,6 +210,7 @@ onMounted(() => {
   }
   loadProfile();
 });
+
 </script>
 
 <style scoped>
@@ -197,7 +231,7 @@ onMounted(() => {
 /* ===== 用户信息卡 ===== */
 .me-card {
   background: var(--color-gradient);
-  padding: 32px 16px 28px;
+  padding: calc(var(--status-bar-height) + 20px) 16px 28px;
   display: flex;
   align-items: center;
   gap: 14px;

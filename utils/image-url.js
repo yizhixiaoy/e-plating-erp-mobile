@@ -3,11 +3,13 @@
 import apiCfg from "../config/api.js";
 
 // 提取 API 基地址的 origin 部分（协议+主机+端口）
+// 使用正则而非 new URL()，避免 App 平台 JS 引擎不支持 URL 构造函数
 let _origin = null;
 function getOrigin() {
   if (_origin !== null) return _origin;
   try {
-    _origin = new URL(apiCfg.apiBase).origin;
+    const m = apiCfg.apiBase.match(/^(https?:\/\/[^\/]+)/);
+    _origin = m ? m[1] : "";
   } catch {
     _origin = "";
   }

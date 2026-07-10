@@ -41,7 +41,7 @@
         @longpress="onLongPress(item)"
       >
         <view class="conv-avatar">
-          <image v-if="getImageUrl(item.peerAvatar || item.avatar)" :src="getImageUrl(item.peerAvatar || item.avatar)" class="conv-avatar-img" mode="aspectFill" />
+          <image v-if="getAvatarSrc(item)" :src="getAvatarSrc(item)" class="conv-avatar-img" mode="aspectFill" @error="onConvAvatarError(item)" />
           <text v-else class="avatar-text">{{ getAvatarText(item) }}</text>
           <view v-if="item.muted === 1" class="mute-indicator">
             <text class="mute-icon">🔇</text>
@@ -80,6 +80,7 @@ import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
 import { getImageUrl } from "../../utils/image-url.js";
+import { preloadImages } from "../../utils/image-preloader.js";
 
 const conversations = ref([]);
 const currentTab = ref("all");
@@ -90,6 +91,25 @@ const pageNum = ref(1);
 const hasMore = ref(true);
 let pollTimer = null;
 let searchTimer = null;
+
+// 头像预加载：URL -> 本地路径映射
+const avatarMap = ref({});
+
+/** 获取会话头像的显示路径 */
+function getAvatarSrc(item) {
+  const remoteUrl = getImageUrl(item.peerAvatar || item.avatar);
+  return avatarMap.value[remoteUrl] || "";
+}
+
+/** 头像加载失败时清除缓存，回退到文字头像 */
+function onConvAvatarError(item) {
+  const remoteUrl = getImageUrl(item.peerAvatar || item.avatar);
+  if (remoteUrl) {
+    const map = { ...avatarMap.value };
+    delete map[remoteUrl];
+    avatarMap.value = map;
+  }
+}
 
 const tabs = [
   { label: "全部", value: "all" },
@@ -176,10 +196,31 @@ async function loadConversations(refresh) {
     }
     hasMore.value = list.length >= 20;
     if (refresh) refreshing.value = false;
+
+    // 预加载头像
+    preloadConvAvatars(refresh || pageNum.value === 1 ? conversations.value : list);
   } catch (e) {
     if (refresh) refreshing.value = false;
   } finally {
     loading.value = false;
+  }
+}
+
+/** 批量预加载会话头像 */
+async function preloadConvAvatars(convList) {
+  const urls = convList
+    .map(c => getImageUrl(c.peerAvatar || c.avatar))
+    .filter(Boolean);
+  if (!urls.length) return;
+  try {
+    const results = await preloadImages(urls);
+    const map = { ...avatarMap.value };
+    results.forEach((localPath, url) => {
+      map[url] = localPath;
+    });
+    avatarMap.value = map;
+  } catch (e) {
+    console.warn('[chat] avatar preload failed:', e);
   }
 }
 
@@ -300,6 +341,7 @@ onMounted(() => {
 onUnmounted(() => {
   stopPolling();
 });
+
 </script>
 
 <script>
@@ -324,7 +366,7 @@ export default {
 /* ===== 顶部导航 ===== */
 .header {
   background: var(--color-gradient);
-  padding: 40px 20px 16px;
+  padding: calc(var(--status-bar-height) + 16px) 20px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;

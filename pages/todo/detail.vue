@@ -7,82 +7,139 @@
       <view class="placeholder"></view>
     </view>
 
+    <!-- 加载中 -->
+    <view v-if="loading" class="status-box">
+      <text class="status-text">加载中...</text>
+    </view>
+
+    <!-- 加载失败 -->
+    <view v-else-if="loadError" class="status-box">
+      <text class="status-text error">加载失败</text>
+      <view class="retry-btn" @click="loadDetail()"><text>重试</text></view>
+    </view>
+
     <!-- 详情内容 -->
-    <scroll-view scroll-y class="detail-content" v-if="detail">
+    <scroll-view v-else-if="detail" scroll-y class="detail-content">
+      <!-- 类型和优先级 -->
       <view class="type-section">
         <text :class="['type-tag', getTypeClass(detail.todoType)]">{{ getTypeLabel(detail.todoType) }}</text>
         <text v-if="detail.priority >= 2" :class="['priority-tag', priorityClass(detail.priority)]">
           {{ getPriorityLabel(detail.priority) }}
         </text>
+        <text v-if="isOverdue" class="overdue-tag">已逾期</text>
       </view>
 
+      <!-- 标题 -->
       <view class="title-section"><text class="detail-title">{{ detail.title }}</text></view>
 
+      <!-- 信息卡片 -->
       <view class="info-card">
         <view class="info-item">
-          <text class="info-label">来源</text>
-          <text class="info-value">{{ detail.bizModule || '系统' }}</text>
+          <view class="info-left">
+            <text class="info-icon">📋</text>
+            <text class="info-label">来源</text>
+          </view>
+          <text class="info-value">{{ getBizModuleLabel(detail.bizModule) }}</text>
         </view>
         <view class="info-item">
-          <text class="info-label">创建时间</text>
+          <view class="info-left">
+            <text class="info-icon">🕐</text>
+            <text class="info-label">创建时间</text>
+          </view>
           <text class="info-value">{{ formatTime(detail.createdAt) }}</text>
         </view>
         <view class="info-item" v-if="detail.deadline">
-          <text class="info-label">截止时间</text>
+          <view class="info-left">
+            <text class="info-icon">⏰</text>
+            <text class="info-label">截止时间</text>
+          </view>
           <text :class="['info-value', isOverdue ? 'overdue-text' : '']">{{ formatTime(detail.deadline) }}</text>
         </view>
         <view class="info-item">
-          <text class="info-label">状态</text>
-          <text :class="['status-value', getStatusClass(detail.status)]">{{ getStatusLabel(detail.status) }}</text>
+          <view class="info-left">
+            <text class="info-icon">🏷️</text>
+            <text class="info-label">状态</text>
+          </view>
+          <text :class="['status-badge', getStatusClass(detail.status)]">{{ getStatusLabel(detail.status) }}</text>
         </view>
         <view class="info-item" v-if="detail.handleAction">
-          <text class="info-label">处理动作</text>
+          <view class="info-left">
+            <text class="info-icon">⚡</text>
+            <text class="info-label">处理动作</text>
+          </view>
           <text class="info-value">{{ getActionLabel(detail.handleAction) }}</text>
         </view>
         <view class="info-item" v-if="detail.handledAt">
-          <text class="info-label">处理时间</text>
+          <view class="info-left">
+            <text class="info-icon">✅</text>
+            <text class="info-label">处理时间</text>
+          </view>
           <text class="info-value">{{ formatTime(detail.handledAt) }}</text>
         </view>
       </view>
 
+      <!-- 详情内容 -->
       <view class="desc-section">
         <text class="section-title">详情内容</text>
         <text class="desc-text">{{ detail.content || '-' }}</text>
       </view>
 
+      <!-- 处理备注 -->
       <view class="desc-section" v-if="detail.handleRemark">
         <text class="section-title">处理备注</text>
         <text class="desc-text">{{ detail.handleRemark }}</text>
       </view>
+
+      <!-- 底部占位（给固定底栏留空间） -->
+      <view style="height: 80px;"></view>
     </scroll-view>
 
     <!-- 底部操作栏：仅未处理可用 -->
     <view class="footer-actions" v-if="detail && detail.status === 0">
       <view v-if="detail.todoType === 'APPROVAL'" class="approval-actions">
-        <button class="reject-btn" @click="doHandle('REJECT')">拒绝</button>
-        <button class="ignore-btn" @click="doHandle('IGNORE')">忽略</button>
-        <button class="approve-btn" @click="doHandle('AGREE')">同意</button>
+        <button class="action-btn reject" @click="doHandle('REJECT')">
+          <text class="action-icon">✕</text>
+          <text>拒绝</text>
+        </button>
+        <button class="action-btn ignore" @click="doHandle('IGNORE')">
+          <text class="action-icon">⊘</text>
+          <text>忽略</text>
+        </button>
+        <button class="action-btn approve" @click="doHandle('AGREE')">
+          <text class="action-icon">✓</text>
+          <text>同意</text>
+        </button>
       </view>
       <view v-else class="normal-actions">
-        <button class="ignore-btn" @click="doHandle('IGNORE')">忽略</button>
-        <button class="complete-btn" @click="doHandle('COMPLETE')">标记为已处理</button>
+        <button class="action-btn ignore" @click="doHandle('IGNORE')">
+          <text class="action-icon">⊘</text>
+          <text>忽略</text>
+        </button>
+        <button class="action-btn approve full" @click="doHandle('COMPLETE')">
+          <text class="action-icon">✓</text>
+          <text>标记为已处理</text>
+        </button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 import * as http from "../../utils/request.js";
 import * as dict from "../../utils/dict.js";
 import apiCfg from "../../config/api.js";
 
 const detail = ref(null);
 const todoId = ref(null);
+const loading = ref(true);
+const loadError = ref(false);
 const todoTypeItems = ref([]);
 const todoPriorityItems = ref([]);
 const todoStatusItems = ref([]);
 const todoActionItems = ref([]);
+const bizModuleItems = ref([]);
 
 const isOverdue = computed(() => {
   if (!detail.value || !detail.value.deadline || detail.value.status !== 0) return false;
@@ -105,6 +162,7 @@ function getPriorityLabel(p) {
 }
 function priorityClass(p) { return ["", "", "high", "urgent"][p] || ""; }
 function getActionLabel(a) { return dict.getDictLabel(todoActionItems.value, a) || a || ""; }
+function getBizModuleLabel(m) { return dict.getDictLabel(bizModuleItems.value, m) || m || "系统"; }
 
 function formatTime(time) {
   if (!time) return "";
@@ -115,7 +173,13 @@ function formatTime(time) {
 function goBack() { uni.navigateBack(); }
 
 async function loadDetail() {
-  if (!todoId.value) return;
+  if (!todoId.value) {
+    loading.value = false;
+    loadError.value = true;
+    return;
+  }
+  loading.value = true;
+  loadError.value = false;
   try {
     const url = apiCfg.fillPath(apiCfg.todo.detail, { id: todoId.value });
     const res = await http.get(url, null, { silent: true });
@@ -127,7 +191,9 @@ async function loadDetail() {
     }
   } catch (e) {
     detail.value = null;
-    uni.showToast({ title: "加载失败", icon: "none" });
+    loadError.value = true;
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -153,22 +219,22 @@ function doHandle(action) {
 }
 
 async function loadDicts() {
-  const [t, p, s, a] = await Promise.all([
+  const [t, p, s, a, b] = await Promise.all([
     dict.fetchDictData("todo_type"),
     dict.fetchDictData("todo_priority"),
     dict.fetchDictData("todo_status"),
-    dict.fetchDictData("todo_action")
+    dict.fetchDictData("todo_action"),
+    dict.fetchDictData("biz_module").catch(() => [])
   ]);
   todoTypeItems.value = t;
   todoPriorityItems.value = p;
   todoStatusItems.value = s;
   todoActionItems.value = a;
+  bizModuleItems.value = b;
 }
 
-onMounted(async () => {
-  const pages = getCurrentPages();
-  const currentPage = pages[pages.length - 1];
-  todoId.value = currentPage.options && currentPage.options.id;
+onLoad(async (options) => {
+  todoId.value = (options && options.id) || null;
   await loadDicts();
   await loadDetail();
 });
@@ -176,14 +242,44 @@ onMounted(async () => {
 
 <style scoped>
 .detail-container {
-  min-height: 100%;
-  background-color: var(--bg-page);
-  padding-bottom: 80px;
+  min-height: 100vh;
+  background: #f5f6fa;
+  padding-bottom: 90px;
 }
 
+/* ===== 状态提示 ===== */
+.status-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 320px;
+  gap: 16px;
+}
+
+.status-text {
+  font-size: 15px;
+  color: #94a3b8;
+}
+
+.status-text.error {
+  color: #ef4444;
+}
+
+.retry-btn {
+  padding: 10px 32px;
+  border: 1px solid #3b82f6;
+  border-radius: 20px;
+  color: #3b82f6;
+  font-size: 14px;
+  font-weight: 500;
+  background: #fff;
+}
+
+/* ===== 顶部导航 ===== */
 .header {
-  background: var(--color-gradient);
-  padding: 12px 16px;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  padding: calc(var(--status-bar-height) + 8px) 16px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -200,225 +296,302 @@ onMounted(async () => {
 .back-icon {
   color: #fff;
   font-size: 20px;
+  font-weight: 300;
 }
 
 .title {
   font-size: 18px;
   font-weight: 600;
   color: #fff;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .placeholder {
   width: 36px;
 }
 
+/* ===== 内容区 ===== */
 .detail-content {
   padding: 16px;
 }
 
+/* ===== 类型区 ===== */
 .type-section {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .type-tag {
   font-size: 12px;
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .type-approval {
-  background-color: #dbeafe;
-  color: #3b82f6;
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .type-notice {
-  background-color: #fef3c7;
-  color: #f59e0b;
+  background: #fffbeb;
+  color: #d97706;
 }
 
 .type-task {
-  background-color: #d1fae5;
-  color: #10b981;
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .type-cc {
-  background-color: #ede9fe;
-  color: #8b5cf6;
+  background: #f5f3ff;
+  color: #7c3aed;
 }
 
 .priority-tag {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
   font-weight: 600;
 }
 
 .priority-tag.urgent {
-  background-color: #fee2e2;
-  color: #ef4444;
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .priority-tag.high {
-  background-color: #ffedd5;
-  color: #f97316;
+  background: #fff7ed;
+  color: #ea580c;
 }
 
+.overdue-tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* ===== 标题 ===== */
 .title-section {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding: 0 2px;
 }
 
 .detail-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.4;
+  color: #1e293b;
+  line-height: 1.45;
+  letter-spacing: 0.2px;
 }
 
+/* ===== 信息卡片 ===== */
 .info-card {
-  background-color: var(--bg-card);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  background: #fff;
+  border-radius: 16px;
   margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
 }
 
 .info-item {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-light);
+  padding: 15px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
 }
 
 .info-item:last-child {
   border-bottom: none;
 }
 
+.info-item:active {
+  background: #f8fafc;
+}
+
+.info-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.info-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* 不同信息项的图标底色 */
+.info-item:nth-child(1) .info-icon { background: #eff6ff; }
+.info-item:nth-child(2) .info-icon { background: #f0fdf4; }
+.info-item:nth-child(3) .info-icon { background: #fff7ed; }
+.info-item:nth-child(4) .info-icon { background: #f5f3ff; }
+.info-item:nth-child(5) .info-icon { background: #fef2f2; }
+.info-item:nth-child(6) .info-icon { background: #ecfdf5; }
+
 .info-label {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: #64748b;
+  font-weight: 500;
 }
 
 .info-value {
   font-size: 14px;
-  color: var(--text-primary);
-  font-weight: 500;
+  color: #334155;
+  font-weight: 600;
+  max-width: 50%;
+  text-align: right;
+  word-break: break-all;
+  line-height: 1.4;
 }
 
 .info-value.overdue-text {
-  color: var(--color-danger);
-  font-weight: 600;
+  color: #dc2626;
 }
 
-.status-value {
-  font-size: 11px;
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
+/* 状态徽章 */
+.status-badge {
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: 20px;
   font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .status-pending {
-  background-color: #dbeafe;
-  color: #3b82f6;
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .status-done {
-  background-color: #d1fae5;
-  color: #10b981;
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .status-ignored {
-  background-color: var(--bg-input);
-  color: var(--text-secondary);
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 
 .status-transferred {
-  background-color: #ede9fe;
-  color: #8b5cf6;
+  background: #f5f3ff;
+  color: #7c3aed;
 }
 
+/* ===== 描述区 ===== */
 .desc-section {
-  background-color: var(--bg-card);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px 18px 20px;
   margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .section-title {
   font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 12px;
-  display: block;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title::before {
+  content: "";
+  width: 4px;
+  height: 18px;
+  background: #3b82f6;
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .desc-text {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+  font-size: 15px;
+  color: #475569;
+  line-height: 1.8;
   white-space: pre-line;
+  word-break: break-word;
 }
 
+/* ===== 底部操作栏 ===== */
 .footer-actions {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: var(--bg-card);
+  background: #fff;
   padding: 12px 16px;
-  box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 10;
 }
 
 .approval-actions,
 .normal-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
-.reject-btn,
-.approve-btn,
-.complete-btn,
-.ignore-btn {
+.action-btn {
   flex: 1;
-  height: 46px;
-  border-radius: var(--radius-md);
+  height: 48px;
+  border-radius: 14px;
   font-size: 15px;
   font-weight: 600;
   border: none;
-  transition: transform var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.15s, opacity 0.15s;
 }
 
-.reject-btn:active,
-.ignore-btn:active,
-.approve-btn:active,
-.complete-btn:active {
+.action-btn:active {
   transform: scale(0.96);
+  opacity: 0.85;
 }
 
-.reject-btn {
-  background-color: #fee2e2;
-  color: #ef4444;
+.action-btn .action-icon {
+  font-size: 16px;
+  font-weight: 700;
 }
 
-.ignore-btn {
-  background-color: var(--bg-input);
-  color: var(--text-secondary);
+.action-btn.reject {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
-.approve-btn {
-  background: var(--color-gradient);
+.action-btn.ignore {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.action-btn.approve {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: #fff;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
 }
 
-.complete-btn {
-  background: var(--color-gradient);
-  color: #fff;
-  box-shadow: var(--shadow-sm);
+.action-btn.approve.full {
+  flex: 2;
 }
 </style>

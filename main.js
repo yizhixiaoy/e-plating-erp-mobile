@@ -16,8 +16,10 @@ app.$mount()
 
 // #ifdef VUE3
 import { createSSRApp } from 'vue'
+import ConfirmDialog from './components/confirm-dialog.vue'
 export function createApp() {
   const app = createSSRApp(App)
+  app.component('ConfirmDialog', ConfirmDialog)
   return {
     app
   }

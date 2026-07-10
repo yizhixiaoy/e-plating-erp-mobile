@@ -4,7 +4,7 @@
     <view class="wb-header">
       <view class="wb-header-row">
         <view class="wb-avatar">
-          <image v-if="userAvatarUrl" :src="userAvatarUrl" class="wb-avatar-img" mode="aspectFill" />
+          <image v-if="avatarLocalPath || userAvatarUrl" :src="avatarLocalPath || userAvatarUrl" class="wb-avatar-img" mode="aspectFill" @error="onAvatarError" />
           <text v-else class="wb-avatar-text">{{ avatarInitial }}</text>
         </view>
         <view class="wb-greet">
@@ -26,19 +26,19 @@
           <text class="wb-stat-num">{{ stats.pendingTodos }}</text>
           <text class="wb-stat-label">待办</text>
         </view>
-        <view class="wb-stat">
-          <text class="wb-stat-num">{{ stats.todayLogs }}</text>
-          <text class="wb-stat-label">今日操作</text>
+        <view class="wb-stat" @click="goOrder">
+          <text class="wb-stat-num">{{ stats.todayOrders }}</text>
+          <text class="wb-stat-label">今日开单</text>
         </view>
-        <view class="wb-stat">
-          <text class="wb-stat-num">{{ stats.onlineUsers }}</text>
-          <text class="wb-stat-label">在线人数</text>
+        <view class="wb-stat" @click="goOrder">
+          <text class="wb-stat-num">{{ stats.pendingOrders }}</text>
+          <text class="wb-stat-label">待处理订单</text>
         </view>
       </view>
     </view>
 
     <!-- 可滚动内容区 -->
-    <scroll-view scroll-y class="wb-scroll">
+    <scroll-view scroll-y class="wb-scroll" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
       <!-- 快捷入口 -->
       <view class="wb-card">
         <view class="wb-quick-grid">
@@ -79,7 +79,7 @@
             >
               <view class="wb-list-main">
                 <text class="wb-list-title">{{ t.title }}</text>
-                <text class="wb-list-sub">{{ t.source || "系统" }} · {{ formatTime(t.createTime) }}</text>
+                <text class="wb-list-sub">{{ t.source || "系统" }} · {{ formatRelativeTime(t.createTime) }}</text>
               </view>
               <text class="wb-list-tag tag-pending">待处理</text>
             </view>
@@ -98,7 +98,7 @@
             >
               <view class="wb-list-main">
                 <text class="wb-list-title">{{ m.title }}</text>
-                <text class="wb-list-sub">{{ formatTime(m.publishTime) }}</text>
+                <text class="wb-list-sub">{{ formatRelativeTime(m.publishTime) }}</text>
               </view>
               <text v-if="m.readStatus === 0" class="wb-list-tag tag-unread">未读</text>
             </view>
@@ -116,12 +116,28 @@ import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
 import { getImageUrl } from "../../utils/image-url.js";
+import { loadImage } from "../../utils/image-preloader.js";
+import { formatRelativeTime } from "../../utils/time.js";
 
 const userInfo = ref(auth.getUserInfo() || {});
 const userName = computed(() => userInfo.value.realName || userInfo.value.username || "用户");
 const tenantName = computed(() => userInfo.value.tenantName || userInfo.value.companyName || auth.getTenantCode() || "");
 const avatarInitial = computed(() => (userName.value || "U").slice(0, 1).toUpperCase());
 const userAvatarUrl = computed(() => getImageUrl(userInfo.value.avatarUrl, "avatar.jpg"));
+const avatarLocalPath = ref("");
+
+/** 预加载用户头像 */
+async function preloadAvatar() {
+  const remoteUrl = userAvatarUrl.value;
+  if (!remoteUrl) return;
+  avatarLocalPath.value = await loadImage(remoteUrl);
+  // loadImage 失败返回空字符串，保持空让文字头像兜底
+}
+
+/** 头像加载失败时清除缓存，回退到文字头像 */
+function onAvatarError() {
+  avatarLocalPath.value = "";
+}
 
 const greeting = computed(() => {
   const h = new Date().getHours();
@@ -135,9 +151,11 @@ const greeting = computed(() => {
 const stats = ref({
   unreadMessages: 0,
   pendingTodos: 0,
-  todayLogs: 0,
-  onlineUsers: 0
+  todayOrders: 0,
+  pendingOrders: 0
 });
+
+const refreshing = ref(false);
 
 // 快捷入口：key → 展示样式映射（颜色/图标文字为纯 UI 属性，保留前端）
 const QUICK_STYLE = {
@@ -146,7 +164,9 @@ const QUICK_STYLE = {
   chat:     { color: "#06b6d4", iconText: "聊" },
   contacts: { color: "#10b981", iconText: "联" },
   message:  { color: "#f59e0b", iconText: "信" },
-  todo:     { color: "#8b5cf6", iconText: "办" }
+  todo:     { color: "#8b5cf6", iconText: "办" },
+  order:    { color: "#ef4444", iconText: "单" },
+  customer: { color: "#f97316", iconText: "客" }
 };
 const quickAccess = ref([]);
 
@@ -172,16 +192,6 @@ const filteredNotices = computed(() => {
   return messages.value.filter(m => m.noticeType === "INTERNAL_NOTICE").slice(0, 10);
 });
 
-function formatTime(time) {
-  if (!time) return "";
-  const d = new Date(time);
-  const diff = Date.now() - d.getTime();
-  if (diff < 60000) return "刚刚";
-  if (diff < 3600000) return Math.floor(diff / 60000) + "分钟前";
-  if (diff < 86400000) return Math.floor(diff / 3600000) + "小时前";
-  return d.toLocaleDateString();
-}
-
 async function loadStats() {
   try {
     const res = await http.get(apiCfg.workbench.stats, null, { silent: true });
@@ -193,7 +203,7 @@ async function loadStats() {
 
 async function loadMessages() {
   try {
-    const res = await http.get(apiCfg.message.list, { pageNum: 1, pageSize: 50 }, { silent: true });
+    const res = await http.get(apiCfg.message.list, { pageNum: 1, pageSize: 50, readStatus: 0 }, { silent: true });
     messages.value = res.data?.records || res.data || [];
     // 兜底统计未读消息（即使 stats 桩失败）
     const unread = messages.value.filter(m => m.readStatus === 0).length;
@@ -203,7 +213,7 @@ async function loadMessages() {
 
 async function loadTodos() {
   try {
-    const res = await http.get(apiCfg.todo.list, { pageNum: 1, pageSize: 20 }, { silent: true });
+    const res = await http.get(apiCfg.todo.list, { pageNum: 1, pageSize: 20, status: 0 }, { silent: true });
     todoList.value = res.data?.records || res.data || [];
     if (!stats.value.pendingTodos) stats.value.pendingTodos = todoList.value.length;
   } catch (e) { todoList.value = []; }
@@ -222,7 +232,18 @@ async function loadQuickAccess() {
 
 const refreshAll = async () => {
   await Promise.all([loadStats(), loadMessages(), loadTodos(), loadQuickAccess()]);
+  preloadAvatar();
 };
+
+async function onRefresh() {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  try {
+    await refreshAll();
+  } finally {
+    refreshing.value = false;
+  }
+}
 
 function onQuickClick(q) {
   if (q.key === "scan") goScan();
@@ -231,6 +252,8 @@ function onQuickClick(q) {
   else if (q.key === "contacts") uni.switchTab({ url: "/pages/contacts/index" });
   else if (q.key === "message") uni.switchTab({ url: "/pages/message/list" });
   else if (q.key === "todo") goTodo();
+  else if (q.key === "order") goOrder();
+  else if (q.key === "customer") goCustomer();
 }
 
 function goScan() {
@@ -248,6 +271,12 @@ function goTodo() {
 function goTodoDetail(id) {
   uni.navigateTo({ url: "/pages/todo/detail?id=" + id });
 }
+function goOrder() {
+  uni.navigateTo({ url: "/pages/goods-order/index" });
+}
+function goCustomer() {
+  uni.navigateTo({ url: "/pages/goods-order/customers" });
+}
 function goMessageDetail(id) {
   // noticeId 是 Long，保持字符串
   uni.navigateTo({ url: "/pages/message/detail?id=" + String(id) });
@@ -261,21 +290,7 @@ onShow(() => {
   refreshAll();
 });
 
-// 下拉刷新
-if (typeof uni !== "undefined" && uni.$on) {
-  // uni-app 下拉刷新由生命周期函数 onPullDownRefresh 提供，setup 风格暴露：
-}
-</script>
 
-<script>
-// onPullDownRefresh 通过选项式导出（uni-app 兼容）
-export default {
-  onPullDownRefresh() {
-    // 下拉刷新：重新加载数据
-    if (this.refreshAll) this.refreshAll();
-    Promise.resolve().then(() => uni.stopPullDownRefresh());
-  },
-};
 </script>
 
 <style scoped>
@@ -295,7 +310,7 @@ export default {
 /* ===== 顶部欢迎区 ===== */
 .wb-header {
   background: var(--color-gradient);
-  padding: 40px 16px 48px;
+  padding: calc(var(--status-bar-height) + 20px) 16px 48px;
   color: #fff;
   flex-shrink: 0;
 }

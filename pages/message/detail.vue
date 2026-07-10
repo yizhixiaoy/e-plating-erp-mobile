@@ -1,61 +1,97 @@
 <template>
-  <view class="message-detail-container">
-    <view class="header">
-      <button @click="goBack" class="back-btn">
-        <text class="back-icon">←</text>
-      </button>
-      <text class="header-title">消息详情</text>
-      <view class="header-right"></view>
-    </view>
-
-    <view v-if="loading" class="loading-container">
-      <text>加载中...</text>
-    </view>
-
-    <view v-else-if="computedMessage" class="message-content">
-      <text class="message-title">{{ computedMessage.title }}</text>
-      <view class="message-meta">
-        <text class="message-time">{{ computedMessage.publishTime }}</text>
-        <text class="message-type">{{ computedMessage.typeText }}</text>
+  <view class="detail-page">
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-back" @click="goBack">
+        <text class="nav-back-icon">←</text>
       </view>
-      <view class="message-body" v-html="computedMessage.content"></view>
+      <text class="nav-title">消息详情</text>
+      <view class="nav-placeholder"></view>
     </view>
 
-    <view v-else class="error-container">
-      <text>消息加载失败</text>
-      <button @click="loadMessage" class="retry-btn">重试</button>
+    <!-- 加载状态 -->
+    <view v-if="loading" class="state-container">
+      <text class="state-spinner">⏳</text>
+      <text class="state-text">加载中...</text>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="!computedMessage" class="state-container">
+      <text class="state-icon">📭</text>
+      <text class="state-text">消息加载失败</text>
+      <view class="retry-btn" @click="loadMessage">
+        <text>重新加载</text>
+      </view>
+    </view>
+
+    <!-- 消息内容 -->
+    <view v-else class="detail-scroll">
+      <!-- 标题卡片 -->
+      <view class="title-card">
+        <!-- 紧急/重要标记 -->
+        <view v-if="computedMessage.level === 3" class="level-badge level-urgent">
+          <text class="level-dot"></text>
+          <text>紧急</text>
+        </view>
+        <view v-else-if="computedMessage.level === 2" class="level-badge level-important">
+          <text class="level-dot"></text>
+          <text>重要</text>
+        </view>
+
+        <!-- 标题 -->
+        <view class="title-row">
+          <view class="title-bar"></view>
+          <text class="title-text">{{ computedMessage.title }}</text>
+        </view>
+
+        <!-- 元信息行 -->
+        <view class="meta-row">
+          <view class="meta-item">
+            <text class="meta-icon">🕐</text>
+            <text class="meta-text">{{ computedMessage.displayTime }}</text>
+          </view>
+          <view class="meta-item">
+            <text class="meta-icon">📋</text>
+            <text class="meta-text type-label">{{ computedMessage.typeText }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 正文卡片 -->
+      <view class="content-card">
+        <view class="content-body" v-html="computedMessage.content"></view>
+      </view>
+
+      <!-- 底部来源信息 -->
+      <view class="footer-info">
+        <text class="footer-text">此消息来自 {{ computedMessage.source || '系统' }}</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, computed } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 import apiConfig from "../../config/api.js";
 import { request } from "../../utils/request.js";
 import * as dict from "../../utils/dict.js";
+import { formatAbsoluteTime } from "../../utils/time.js";
 
-// 基础配置
 const apiBase = apiConfig.apiBase;
 
-// 状态管理
 const id = ref("");
 const readStatus = ref(0);
 const message = ref(null);
 const loading = ref(true);
 const noticeTypeItems = ref([]);
 
-// 生命周期
-onMounted(() => {
-  // 获取URL参数中的id和readStatus
-  const pages = getCurrentPages();
-  const currentPage = pages[pages.length - 1];
-  const options = currentPage.options;
-  id.value = options.id || "";
-  readStatus.value = parseInt(options.readStatus || "0", 10);
-  
-  // 加载字典
+onLoad((options) => {
+  id.value = (options && options.id) || "";
+  readStatus.value = parseInt((options && options.readStatus) || "0", 10);
+
   dict.fetchDictData("notice_type").then((items) => { noticeTypeItems.value = items; });
-  
+
   if (id.value) {
     loadMessage();
   } else {
@@ -63,20 +99,18 @@ onMounted(() => {
   }
 });
 
-// 加载消息详情
 async function loadMessage() {
   if (!id.value) return;
-  
+
   loading.value = true;
   try {
     const resp = await request({
       url: `${apiBase}/messages/notices/${id.value}`,
       method: "GET"
     });
-    
+
     if (resp?.code === 200 && resp?.data) {
       message.value = resp.data;
-      // 仅未读消息才标记已读，避免重复调用
       if (readStatus.value === 0) {
         markAsRead();
       }
@@ -88,10 +122,8 @@ async function loadMessage() {
   }
 }
 
-// 标记为已读
 async function markAsRead() {
   if (!id.value) return;
-  
   try {
     await request({
       url: `${apiBase}/mobile/messages/${id.value}/read`,
@@ -102,162 +134,346 @@ async function markAsRead() {
   }
 }
 
-// 返回上一页
 function goBack() {
   uni.navigateBack();
 }
 
-// 计算属性
 const computedMessage = computed(() => {
   if (!message.value) return null;
-  
-  // 从字典获取消息类型标签
-  const typeText = dict.getDictLabel(noticeTypeItems.value, message.value.noticeType) || message.value.noticeType;
-  
-  // 格式化时间
-  let publishTime = message.value.publishTime || message.value.createdAt;
-  if (publishTime) {
-    const date = new Date(publishTime);
-    publishTime = date.toLocaleString();
-  }
-  
+
+  const typeText = dict.getDictLabel(noticeTypeItems.value, message.value.noticeType) || message.value.noticeType || '系统通知';
+
+  const rawTime = message.value.publishTime || message.value.createdAt;
+  const displayTime = formatAbsoluteTime(rawTime);
+
   return {
     ...message.value,
     typeText,
-    publishTime
+    displayTime
   };
 });
 </script>
 
 <style scoped>
-.message-detail-container {
-  min-height: 100%;
-  background-color: var(--bg-page);
+.detail-page {
+  min-height: 100vh;
+  background: #f0f2f5;
 }
 
-.header {
+/* ===== 导航栏 ===== */
+.nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background-color: var(--bg-card);
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  padding: calc(var(--status-bar-height) + 8px) 16px 14px;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
 }
 
-.back-btn {
-  width: 40px;
-  height: 40px;
+.nav-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  padding: 0;
 }
 
-.back-icon {
-  font-size: 20px;
-  color: var(--text-primary);
+.nav-back:active {
+  background: rgba(255, 255, 255, 0.3);
 }
 
-.header-title {
-  font-size: 16px;
+.nav-back-icon {
+  font-size: 18px;
+  color: #fff;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.nav-title {
+  font-size: 17px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #fff;
+  letter-spacing: 0.5px;
 }
 
-.header-right {
-  width: 40px;
+.nav-placeholder {
+  width: 36px;
 }
 
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 300px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.message-content {
-  padding: 20px 16px;
-  background-color: var(--bg-card);
-  margin: 12px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-}
-
-.message-title {
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 14px;
-  display: block;
-  line-height: 1.4;
-}
-
-.message-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.message-time {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.message-type {
-  font-size: 12px;
-  color: var(--color-primary);
-  background-color: #eff6ff;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  font-weight: 500;
-}
-
-.message-body {
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--text-primary);
-}
-
-.message-body :deep(p) {
-  margin-bottom: 12px;
-}
-
-.message-body :deep(h1),
-.message-body :deep(h2),
-.message-body :deep(h3) {
-  margin: 16px 0 8px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.error-container {
+/* ===== 状态 ===== */
+.state-container {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  height: 300px;
-  font-size: 14px;
-  color: var(--text-secondary);
+  justify-content: center;
+  height: 360px;
+  gap: 12px;
+}
+
+.state-spinner,
+.state-icon {
+  font-size: 48px;
+}
+
+.state-text {
+  font-size: 15px;
+  color: #94a3b8;
 }
 
 .retry-btn {
-  margin-top: 16px;
-  padding: 8px 20px;
-  border: 1.5px solid var(--color-primary);
-  border-radius: var(--radius-md);
-  background-color: var(--bg-card);
-  color: var(--color-primary);
+  margin-top: 8px;
+  padding: 10px 28px;
+  border-radius: 22px;
+  background: #fff;
+  border: 1px solid #3b82f6;
+}
+
+.retry-btn text {
   font-size: 14px;
+  color: #3b82f6;
   font-weight: 500;
+}
+
+/* ===== 滚动区 ===== */
+.detail-scroll {
+  padding: 14px 14px 40px;
+}
+
+/* ===== 标题卡片 ===== */
+.title-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 20px 18px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+
+.level-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.level-urgent {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.level-urgent .level-dot {
+  background: #dc2626;
+}
+
+.level-important {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.level-important .level-dot {
+  background: #ea580c;
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.title-bar {
+  width: 4px;
+  min-width: 4px;
+  height: 24px;
+  background: linear-gradient(180deg, #3b82f6, #6366f1);
+  border-radius: 2px;
+  margin-top: 2px;
+}
+
+.title-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.45;
+  letter-spacing: 0.15px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.meta-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.meta-text {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.type-label {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+/* ===== 正文卡片 ===== */
+.content-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+}
+
+.content-body {
+  font-size: 15px;
+  line-height: 1.9;
+  color: #334155;
+  word-break: break-word;
+}
+
+/* 富文本样式 */
+.content-body :deep(p) {
+  margin-bottom: 14px;
+}
+
+.content-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.content-body :deep(h1),
+.content-body :deep(h2),
+.content-body :deep(h3),
+.content-body :deep(h4) {
+  margin: 20px 0 10px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.content-body :deep(h1) { font-size: 19px; }
+.content-body :deep(h2) { font-size: 17px; }
+.content-body :deep(h3) { font-size: 16px; }
+.content-body :deep(h4) { font-size: 15px; }
+
+.content-body :deep(ul),
+.content-body :deep(ol) {
+  padding-left: 20px;
+  margin-bottom: 14px;
+}
+
+.content-body :deep(li) {
+  margin-bottom: 6px;
+}
+
+.content-body :deep(strong),
+.content-body :deep(b) {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.content-body :deep(a) {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.content-body :deep(blockquote) {
+  border-left: 3px solid #cbd5e1;
+  padding: 6px 0 6px 14px;
+  margin: 14px 0;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 0 6px 6px 0;
+}
+
+.content-body :deep(code) {
+  background: #f1f5f9;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  color: #e11d48;
+}
+
+.content-body :deep(pre) {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin: 14px 0;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.content-body :deep(pre code) {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+.content-body :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+.content-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13px;
+}
+
+.content-body :deep(th),
+.content-body :deep(td) {
+  border: 1px solid #e2e8f0;
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.content-body :deep(th) {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
+}
+
+.content-body :deep(hr) {
+  border: none;
+  height: 1px;
+  background: #e2e8f0;
+  margin: 18px 0;
+}
+
+/* ===== 底部信息 ===== */
+.footer-info {
+  text-align: center;
+  padding: 4px 0 20px;
+}
+
+.footer-text {
+  font-size: 12px;
+  color: #94a3b8;
 }
 </style>
