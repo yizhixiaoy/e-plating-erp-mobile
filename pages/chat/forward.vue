@@ -56,7 +56,8 @@ const conversations = ref([]);
 const selected = ref([]);
 const keyword = ref("");
 const loading = ref(true);
-const messageData = ref(null);
+const messageData = ref(null); // 单条消息: {msgType, content, extraJson} | 批量: [{msgType, content, extraJson}, ...]
+const isBatch = ref(false);
 
 // 头像预加载：URL -> 本地路径映射
 const avatarMap = ref({});
@@ -73,6 +74,7 @@ const filteredList = computed(() => {
 });
 
 onLoad((query) => {
+  isBatch.value = query.batch === "1";
   if (query.data) {
     try {
       messageData.value = JSON.parse(decodeURIComponent(query.data));
@@ -138,15 +140,19 @@ function isSelected(item) {
 async function doForward() {
   if (selected.value.length === 0 || !messageData.value) return;
   try {
+    const messages = isBatch.value ? messageData.value : [messageData.value];
     for (const conv of selected.value) {
-      await http.post(apiCfg.chat.send, {
-        conversationId: conv.id,
-        msgType: messageData.value.msgType,
-        content: messageData.value.content,
-        extraJson: messageData.value.extraJson
-      });
+      for (const msg of messages) {
+        await http.post(apiCfg.chat.send, {
+          conversationId: conv.id,
+          msgType: msg.msgType,
+          content: msg.content,
+          extraJson: msg.extraJson
+        });
+      }
     }
-    uni.showToast({ title: "转发成功", icon: "success" });
+    const count = messages.length;
+    uni.showToast({ title: count > 1 ? `已转发${count}条消息` : "转发成功", icon: "success" });
     setTimeout(() => { uni.navigateBack(); }, 1000);
   } catch (e) {
     uni.showToast({ title: "转发失败", icon: "none" });

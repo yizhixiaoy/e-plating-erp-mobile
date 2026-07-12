@@ -16,7 +16,8 @@
         </view>
       </view>
       <view class="nav-right">
-        <text class="nav-action" @click="showDetail = true">•••</text>
+        <text v-if="selectMode" class="nav-select-btn" @click="exitSelectMode">取消</text>
+        <text v-else class="nav-action" @click="showDetail = true">•••</text>
       </view>
     </view>
 
@@ -50,12 +51,20 @@
         <!-- 普通消息 -->
         <view
           v-else
-          :class="['msg-row', msg.senderId === myUserId ? 'mine' : 'other']"
+          :class="['msg-row', msg.senderId === myUserId ? 'mine' : 'other', { 'select-mode': selectMode }]"
           :data-msg-id="msg.id"
+          @longpress="onMsgLongPressNative(msg)"
           @touchstart="onMsgTouchStart($event, msg)"
           @touchend="onMsgTouchEnd"
           @touchmove="onMsgTouchMove"
+          @click="onMsgRowClick(msg)"
         >
+          <!-- 多选模式复选框 -->
+          <view v-if="selectMode" class="select-checkbox" @click.stop="toggleMsgSelect(msg)">
+            <view :class="['check-circle', isMsgSelected(msg) ? 'checked' : '']">
+              <text v-if="isMsgSelected(msg)">✓</text>
+            </view>
+          </view>
           <view v-if="convType === 'GROUP' && msg.senderId !== myUserId" class="msg-avatar-left" @click="showUserProfile(msg.senderId)">
             <image v-if="getSenderAvatarSrc(getImageUrl(msg.senderAvatar))" :src="getSenderAvatarSrc(getImageUrl(msg.senderAvatar))" class="msg-avatar-img" mode="aspectFill" />
             <text v-else class="avatar-char">{{ (msg.senderName || 'U').slice(0, 1) }}</text>
@@ -265,6 +274,21 @@
         </scroll-view>
       </view>
     </view>
+
+    <!-- 多选模式底部操作栏 -->
+    <view v-if="selectMode" class="select-bar">
+      <view class="select-bar-left" @click="toggleSelectAll">
+        <view :class="['check-circle', isAllSelected ? 'checked' : '']">
+          <text v-if="isAllSelected">✓</text>
+        </view>
+        <text class="select-bar-label">全选</text>
+      </view>
+      <view class="select-bar-actions">
+        <view class="select-bar-btn" :class="{ disabled: selectedMsgIds.size === 0 }" @click="doBatchForward">
+          <text>转发</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -300,6 +324,13 @@ const showDetail = ref(false);
 const editHistoryVisible = ref(false);
 const currentEditHistory = ref([]);
 const profileVisible = ref(false);
+const selectMode = ref(false);
+const selectedMsgIds = ref(new Set());
+
+const isAllSelected = computed(() => {
+  const selectable = messages.value.filter(m => m.msgType !== 'SYSTEM' && m.recalled !== 1);
+  return selectable.length > 0 && selectable.every(m => selectedMsgIds.value.has(m.id));
+});
 
 // emoji 分类数据（从后端字典加载，与 Web 端 emojis.ts 一致）
 const emojiCategories = ref([]);
@@ -408,6 +439,8 @@ onLoad((query) => {
   showDetail.value = false;
   editHistoryVisible.value = false;
   profileVisible.value = false;
+  selectMode.value = false;
+  selectedMsgIds.value = new Set();
   inputText.value = "";
   scrollIntoView.value = "";
 
@@ -550,22 +583,33 @@ function insertEmoji(e) {
   inputText.value += e;
 }
 
-// ====== 自定义长按检测（与钉钉/微信一致：10px 移动阈值 + 按压视觉反馈）======
+// ====== 长按检测（原生 @longpress + H5 计时器双保险）======
 let longPressTimer = null;
 let longPressTarget = null;
+let longPressTriggered = false; // 防止 @longpress 和计时器双触发
 let touchStartX = 0;
 let touchStartY = 0;
-const TOUCH_MOVE_THRESHOLD = 10; // 钉钉/微信标准：手指移动超过 10px 才取消长按，允许自然微动
+const TOUCH_MOVE_THRESHOLD = 10;
+
+/** 原生 @longpress 事件入口（仅 App 平台有效） */
+function onMsgLongPressNative(msg) {
+  longPressTriggered = true;
+  clearLongPressTimer();
+  onMsgLongPress(msg);
+}
 
 function onMsgTouchStart(e, msg) {
+  if (selectMode.value) return; // 多选模式下长按不触发菜单
   const touch = e.touches?.[0] || e.changedTouches?.[0];
   if (!touch) return;
   touchStartX = touch.clientX || touch.pageX || 0;
   touchStartY = touch.clientY || touch.pageY || 0;
+  longPressTriggered = false;
   longPressTarget = msg;
   clearLongPressTimer();
   longPressTimer = setTimeout(() => {
-    if (longPressTarget) {
+    if (longPressTarget && !longPressTriggered) {
+      longPressTriggered = true;
       onMsgLongPress(longPressTarget);
     }
     clearLongPressTimer();
@@ -574,15 +618,15 @@ function onMsgTouchStart(e, msg) {
 
 function onMsgTouchEnd() {
   clearLongPressTimer();
+  longPressTriggered = false;
 }
 
 function onMsgTouchMove(e) {
-  if (!longPressTimer) return; // 计时器已清除则忽略
+  if (!longPressTimer) return;
   const touch = e.touches?.[0] || e.changedTouches?.[0];
   if (!touch) return;
   const dx = (touch.clientX || touch.pageX || 0) - touchStartX;
   const dy = (touch.clientY || touch.pageY || 0) - touchStartY;
-  // 只有移动超过阈值才取消（与钉钉/微信一致：允许手指自然微动 1-2px）
   if (Math.abs(dx) > TOUCH_MOVE_THRESHOLD || Math.abs(dy) > TOUCH_MOVE_THRESHOLD) {
     clearLongPressTimer();
   }
@@ -597,6 +641,7 @@ function clearLongPressTimer() {
 }
 
 function onMsgLongPress(msg) {
+  if (selectMode.value) return;
   if (msg.recalled === 1 || msg.msgType === "SYSTEM") return;
   const actions = [];
   if (msg.msgType === "TEXT") actions.push("复制");
@@ -604,10 +649,10 @@ function onMsgLongPress(msg) {
   if (msg.senderId === myUserId.value) {
     const age = Date.now() - new Date(msg.createdAt).getTime();
     if (age < 120000) actions.push("撤回");
-    // 编辑：自己的文本消息且未撤回（与 Web 端 canEdit 一致）
     if (msg.msgType === "TEXT") actions.push("编辑");
   }
   actions.push("转发");
+  actions.push("多选");
   uni.showActionSheet({
     itemList: actions,
     success(res) {
@@ -617,6 +662,7 @@ function onMsgLongPress(msg) {
       else if (action === "撤回") recallMessage(msg);
       else if (action === "转发") forwardMessage(msg);
       else if (action === "编辑") startEdit(msg);
+      else if (action === "多选") enterSelectMode(msg);
     }
   });
 }
@@ -735,6 +781,59 @@ function showEditHistory(msg) {
     { content: msg.content || "", editedAt: msg.editedAt || msg.createdAt || "" }
   ];
   editHistoryVisible.value = true;
+}
+
+// ====== 多选模式 ======
+function enterSelectMode(initialMsg) {
+  selectMode.value = true;
+  selectedMsgIds.value = new Set();
+  if (initialMsg) selectedMsgIds.value.add(initialMsg.id);
+  showEmoji.value = false;
+  editingMsg.value = null;
+  replyTo.value = null;
+}
+
+function exitSelectMode() {
+  selectMode.value = false;
+  selectedMsgIds.value = new Set();
+}
+
+function isMsgSelected(msg) {
+  return selectedMsgIds.value.has(msg.id);
+}
+
+function toggleMsgSelect(msg) {
+  if (!selectMode.value) return;
+  const newSet = new Set(selectedMsgIds.value);
+  if (newSet.has(msg.id)) newSet.delete(msg.id);
+  else newSet.add(msg.id);
+  selectedMsgIds.value = newSet;
+}
+
+function toggleSelectAll() {
+  const selectable = messages.value.filter(m => m.msgType !== 'SYSTEM' && m.recalled !== 1);
+  if (isAllSelected.value) {
+    selectedMsgIds.value = new Set();
+  } else {
+    selectedMsgIds.value = new Set(selectable.map(m => m.id));
+  }
+}
+
+function onMsgRowClick(msg) {
+  if (!selectMode.value) return;
+  toggleMsgSelect(msg);
+}
+
+function doBatchForward() {
+  if (selectedMsgIds.value.size === 0) return;
+  const selectedMsgs = messages.value.filter(m => selectedMsgIds.value.has(m.id));
+  const data = encodeURIComponent(JSON.stringify(selectedMsgs.map(m => ({
+    msgType: m.msgType,
+    content: m.content,
+    extraJson: m.extraJson
+  }))));
+  exitSelectMode();
+  uni.navigateTo({ url: "/pages/chat/forward?data=" + data + "&batch=1" });
 }
 
 async function markAsRead() {
@@ -1610,5 +1709,94 @@ onUnmounted(() => {
   padding: 40px 0;
   color: var(--text-tertiary);
   font-size: 13px;
+}
+
+/* ===== 多选模式 ===== */
+.msg-row.select-mode {
+  align-items: center;
+}
+
+.select-checkbox {
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+.check-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.check-circle.checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.check-circle text {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.nav-select-btn {
+  font-size: 14px;
+  color: #fff;
+  padding: 4px 10px;
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 4px;
+}
+
+.select-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-light);
+  flex-shrink: 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+.select-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.select-bar-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.select-bar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.select-bar-btn {
+  padding: 8px 20px;
+  background: var(--color-primary);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.select-bar-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.select-bar-btn:active {
+  opacity: 0.8;
 }
 </style>
