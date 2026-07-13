@@ -76,6 +76,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { onShow } from "@dcloudio/uni-app";
 import * as http from "../../utils/request.js";
 import * as auth from "../../utils/auth.js";
 import apiCfg from "../../config/api.js";
@@ -342,16 +343,9 @@ onUnmounted(() => {
   stopPolling();
 });
 
-</script>
-
-<script>
-export default {
-  onShow() {
-    if (this.$refs && typeof this.$refs.loadConversations === "function") {
-      this.$refs.loadConversations(true);
-    }
-  }
-};
+onShow(() => {
+  loadConversations(true);
+});
 </script>
 
 <style scoped>

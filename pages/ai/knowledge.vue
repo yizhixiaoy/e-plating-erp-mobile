@@ -23,11 +23,14 @@
         <view class="doc-info">
           <text class="doc-icon">📄</text>
           <view class="doc-text">
-            <text class="doc-name">{{ doc.filename }}</text>
+            <text class="doc-name">{{ doc.file_name || doc.title }}</text>
             <text class="doc-meta">{{ doc.chunk_count || 0 }}片段 · {{ doc.parse_status === 'completed' ? '已完成' : '解析中' }}</text>
           </view>
         </view>
-        <button size="mini" class="doc-delete" @tap="deleteDoc(doc)">删除</button>
+        <view class="doc-actions">
+          <button v-if="doc.file_url" size="mini" class="doc-preview" @tap="previewDoc(doc)">预览</button>
+          <button size="mini" class="doc-delete" @tap="deleteDoc(doc)">删除</button>
+        </view>
       </view>
 
       <!-- 上传按钮 -->
@@ -116,7 +119,7 @@ async function loadDocuments() {
 async function deleteDoc(doc) {
   const { value } = await uni.showModal({
     title: '确认删除',
-    content: `确定删除「${doc.filename}」？`,
+    content: `确定删除「${doc.file_name || doc.title}」？`,
   })
   if (!value) return
 
@@ -146,10 +149,14 @@ function chooseFile() {
           uni.showToast({ title: err, icon: 'none', duration: 3000 })
           continue
         }
-        await uploadFile(file.path, file.name)
+        const result = await uploadFile(file.path, file.name)
+        uni.showToast({ title: result?.message || '上传成功，正在解析中...', icon: 'none', duration: 2000 })
       }
       loadDocuments()
       loadKbList()
+      // 后台解析中，定时刷新以更新解析状态
+      setTimeout(() => loadDocuments(), 5000)
+      setTimeout(() => loadDocuments(), 15000)
     },
   })
 }
@@ -181,6 +188,43 @@ function uploadFile(filePath, fileName) {
       }
     })
   })
+}
+
+/** 将相对路径解析为完整后端URL（不暴露OSS直链，走后端重定向转发） */
+function resolveFileUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  // /api/v1/files/preview?... → 拼接后端base URL（去掉config.apiBase中重复的/api/v1）
+  const base = config.apiBase.replace(/\/api\/v1\/?$/, '')
+  return base + url
+}
+
+/** 文档预览：根据文件类型选择预览方式 */
+function previewDoc(doc) {
+  if (!doc.file_url) return
+  const previewType = doc.preview_type || 'none'
+  const url = resolveFileUrl(doc.file_url)
+
+  // 图片：使用原生图片预览
+  if (previewType === 'image') {
+    uni.previewImage({ urls: [url], current: url })
+    return
+  }
+
+  // IMM文档预览（PDF/Office）或文本：在系统浏览器中打开
+  // #ifdef APP-PLUS
+  plus.runtime.openURL(url)
+  // #endif
+  // #ifdef H5
+  window.open(url, '_blank')
+  // #endif
+  // #ifdef MP-WEIXIN
+  // 小程序不支持打开外部链接，复制到剪贴板
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '链接已复制，请在浏览器中打开', icon: 'none', duration: 3000 })
+  })
+  // #endif
 }
 </script>
 
@@ -291,6 +335,22 @@ function uploadFile(filePath, fileName) {
   font-size: 13px;
   font-weight: 500;
   border: 1.5px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+}
+
+.doc-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.doc-preview {
+  background: none;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid var(--color-primary);
   border-radius: var(--radius-sm);
   padding: 4px 12px;
 }
