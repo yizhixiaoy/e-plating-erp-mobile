@@ -1,7 +1,7 @@
 // API配置文件
 const config = {
   // API基础URL（开发环境）
-  // apiBase: "http://192.168.7.37:8080/api/v1",
+  // apiBase: "http://xxxx:8080/api/v1",
   // API基础URL（生产环境）
   apiBase: "https://www.qianyunz.ltd/api/v1",
 
